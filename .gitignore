@@ -1,3 +1,6 @@
 .DS_Store
 /src/__pycache__
 /src/.idea
+/src/Sequencer/.idea/
+/src/Sequencer/__pycache__/
+/src/Sequencer/deploy.sh
