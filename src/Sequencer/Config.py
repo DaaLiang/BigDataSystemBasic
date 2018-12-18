@@ -15,7 +15,7 @@ class DealerConfig(Config):
 
 class SequencerConfig(Config):
 
-    LISTEN_PORT = ("0.0.0.0", 60002)
+    LISTEN_PORT = ("0.0.0.0", 6666)
     RECV_BUFF_SIZE = 4096
 
     INTERVAL = 0.05

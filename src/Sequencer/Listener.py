@@ -38,7 +38,7 @@ class listenServer():
             print('received from ', address)
             # future = self.__executors.submit(lambda con:con.recv(SequencerConfig.RECV_BUFF_SIZE), conn)
             # self.__sync.acquire()
-            self.futures += future['text']
+            self.futures += list(future['data'])
             print(len(self.futures), self.futures)
             # self.__sync.release()
 
