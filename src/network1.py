@@ -92,13 +92,14 @@ def checker(shared_memory, lock):
                 data_trans = shared_memory[:]
                 shared_memory[:] = []
                 lock.release()
-                t = threading.Thread(target = trans, args = (data_trans,))  # 创建新线程用于传输整合的数据
-                t.start()
+                print "传输数据,数据len:" + str(len(data_trans))
+                # t = threading.Thread(target = trans, args = (data_trans,))  # 创建新线程用于传输整合的数据
+                # t.start()
                 # print len(data_trans)
         # print shared_memory[len(shared_memory)-1]
 
-def trans(datalist):   # 数据传输
-    print "传输数据,数据len:" + str(len(datalist))
+# def trans(datalist):   # 数据传输
+#     print "传输数据,数据len:" + str(len(datalist))
 
 if __name__ == '__main__':
     lock = multiprocessing.Lock()
