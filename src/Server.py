@@ -6,14 +6,16 @@ import threading
 import socket
 import multiprocessing
 ###test_data
-data0={'data':((1,2,3,4,5),(2,3,5,6,7))}##size,id,sell,bid,amount,time
-jdata0=json.dumps(data0)
-print jdata0
-bdata0=jdata0.decode()
-print bdata0
+###data0={'data':((1,2,3,4,5),(2,3,5,6,7))}##size,id,sell,bid,amount,time
+###data1={'data':((2,3,4,5),(4,5,6,7))}##id,price,amount,time
+###jdata0=json.dumps(data0)
+###print jdata0
+###bdata0=jdata0.decode()
+#print bdata0
 #listening
 
 def socket_service(shared_memory, lock):
+    print "正在接受交易商信息"
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # 防止socket server重启后端口被占用（socket.error: [Errno 98] Address already in use）
@@ -74,6 +76,7 @@ def buffer(messageJson, shared_memory, lock):
     #print sys.getsizeof(mylist)
 
 def checker(shared_memory, lock):
+    print "正在监测通信服务器状态"
     time_gap = 1            # 整合数据的时间间隔
     last_lens = 0
     time_start = time.time()
@@ -83,7 +86,7 @@ def checker(shared_memory, lock):
         #     last_lens = len(shared_memory)
 
 
-        if time.time() - time_start > time_gap:
+        if time.time() - time_start > time_gap or len(shared_memory)>=1000000:
             time_start = time.time()
             if len(shared_memory) != 0:
                 lock.acquire()
@@ -92,14 +95,79 @@ def checker(shared_memory, lock):
                 data_trans = shared_memory[:]
                 shared_memory[:] = []
                 lock.release()
-                print "传输数据,数据len:" + str(len(data_trans))
-                # t = threading.Thread(target = trans, args = (data_trans,))  # 创建新线程用于传输整合的数据
-                # t.start()
+                t = threading.Thread(target = trans, args = (data_trans,))  # 创建新线程用于传输整合的数据
+                t.start()
                 # print len(data_trans)
         # print shared_memory[len(shared_memory)-1]
 
-# def trans(datalist):   # 数据传输
-#     print "传输数据,数据len:" + str(len(datalist))
+
+def trans(datalist):   # 数据传输
+    #print "传输数据,数据len:" + str(len(datalist))
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect(('127.0.0.1', 6667))
+    except socket.error as msg:
+        print msg
+        sys.exit(1)
+    s.send(dataLen.encode())
+    # time.sleep(1)
+    judge = s.recv(1024)
+    if judge:
+        s.send(data)
+    s.close()
+##Listen information from   transaction & give it to the brokers
+##Get enough data &send it to brokers
+def socket_service2():
+    print "正在接受交易服务器数据"
+    try:
+       s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+       # 防止socket server重启后端口被占用（socket.error: [Errno 98] Address already in use）
+       s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+       s.bind(('127.0.0.1', 6666))
+       s.listen(10)
+    except socket.error as msg:
+       print msg
+       sys.exit(1)
+    print 'Waiting connection...'
+
+    while 1:
+       conn, addr = s.accept()
+       t = threading.Thread(target=deal_data, args=(conn, addr))
+       t.start()
+
+def deal_data2(conn, addr):
+      print 'Accept new connection from {0}'.format(addr)
+
+      while 1:
+          datalens = conn.recv(1024)
+          conn.send("next".encode())
+          print datalens
+          dataJson = ""
+          print type(datalens)
+          while 1:
+              datatemp = conn.recv(1024)
+              if not datatemp:
+                  break
+              dataJson += datatemp
+
+          ##print len(dataJson)
+          break
+      ##发送数据给broker
+      conn.close()
+      print "已存好数据开始转发"
+      trans(dataJson)
+
+
+
+
+
+
+
+
+
+
+
+
 
 if __name__ == '__main__':
     lock = multiprocessing.Lock()
@@ -107,12 +175,15 @@ if __name__ == '__main__':
     # shared_memory = []
     a = multiprocessing.Process(target=socket_service, args=(shared_memory, lock))
     b = multiprocessing.Process(target=checker, args=(shared_memory, lock))
+    c = multiprocessing.Process(target=socket_service2())
     a.start()
     b.start()
+    c.start()
     a.join()
     b.join()
+    c.join()
 
-##sending
+
 ##sendingback
 
 

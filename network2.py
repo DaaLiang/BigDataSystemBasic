@@ -110,7 +110,7 @@ def trans(datalist):   # 数据传输
         print msg
         sys.exit(1)
     s.send(dataLen.encode())
-    time.sleep(1)
+    # time.sleep(1)
     judge = s.recv(1024)
     if judge:
         s.send(data)

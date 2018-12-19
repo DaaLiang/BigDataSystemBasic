@@ -45,13 +45,14 @@ def Sequence(shared_list, lock):
         while True:
             if index == len(temp_list): break
             each = temp_list[index]
-            if  now - each[4] > SequencerConfig.INTERVAL:
+            if now - each[4] > SequencerConfig.INTERVAL:
                 if stock_id.has_key(each[0]) == False:
                     stock_id[each[0]] = []
                 stock_id[each[0]].append(each)
                 index += 1
                 total += 1
-            else: break
+            else:
+                break
 
         # send messages
         if index == 0: continue
@@ -61,7 +62,7 @@ def Sequence(shared_list, lock):
         # drain temp_list
         temp_list[0:index] = []
 
-        if total !=0: print('num of messages sent ', total)
+        if total != 0: print('num of messages sent ', total)
 
 
 if __name__ == '__main__':
@@ -70,9 +71,9 @@ if __name__ == '__main__':
     listLock = Lock()
 
     listener = listenServer()
-    listen_proc = Process(target=listener.run, args=(myList,listLock,))
+    listen_proc = Process(target=listener.run, args=(myList, listLock,))
 
-    sender_proc = Process(target=Sequence, args=(myList,listLock,))
+    sender_proc = Process(target=Sequence, args=(myList, listLock,))
 
     listen_proc.start()
     sender_proc.start()

@@ -9,17 +9,90 @@ import socket
 
 import struct
 import json
-import random
+import queue
+import numpy as np
 
 SENDERIP = '0.0.0.0'
 MYPORT = 1234
 MYGROUP = '224.1.1.1'
 
 
+class Stock(object):
+    def __init__(self, stock_id):
+        self.stock_id = stock_id
+        self.prices_sell = []  # k:卖价 v:股数
+        self.prices_buy = []  # k:买价 v:股数
+
+    def add_to_buyer(self, price, amount):  # 按从大到小排序
+        idx = len(self.prices_buy)
+        while idx > 0:
+            if self.prices_buy[idx - 1][0] < price:
+                idx -= 1
+                continue
+            break
+        self.prices_buy.insert(idx, [price, amount])
+
+    def add_to_seller(self, price, amount):  # 按从小到大排序
+        idx = len(self.prices_sell)
+        while idx > 0:
+            if self.prices_buy[idx - 1][0] > price:
+                idx -= 1
+                continue
+            break
+        self.prices_sell.insert(idx, [price, amount])
+
+    def buy(self, price, amount):
+        if len(self.prices_sell) == 0:
+            self.add_to_buyer(price, amount)
+        remove = -1
+        total_price = 0
+        remain = amount
+        idx = 0
+        while remain > 0:
+            if self.prices_sell[idx][0] > price:  # 当找不到成交价时
+                break
+            deal = min(remain, self.prices_sell[idx][1])
+            remain -= deal
+            total_price += price * deal
+            self.prices_sell[idx][1] -= deal
+            if self.prices_sell[idx][1] == 0:
+                remove = idx
+            idx += 1
+
+        self.prices_sell = self.prices_sell[remove + 1:]
+        if remain != 0:
+            self.add_to_buyer(price, remain)
+        return total_price, amount - remain
+
+    def sell(self, price, amount):
+        if len(self.prices_buy) == 0:
+            self.add_to_seller(price, amount)
+        remove = -1
+        total_price = 0
+        remain = amount
+        idx = 0
+        while remain > 0:
+            if self.prices_buy[idx][0] < price:  # 当找不到成交价时
+                break
+            deal = min(remain, self.prices_buy[idx][1])
+            remain -= deal
+            total_price += price * deal
+            self.prices_buy[idx][1] -= deal
+            if self.prices_buy[idx][1] == 0:
+                remove = idx
+            idx += 1
+
+        self.prices_buy = self.prices_buy[remove + 1:]
+        if remain != 0:
+            self.add_to_seller(price, remain)
+        return total_price, amount - remain
+
+
 class Receiver(Process):
     def __init__(self, shared_memory):
         self.logger = Logger("Deal Receiver", DealerConfig.DEBUG)
         self.shared_memory = shared_memory
+        self.cache = {}
 
     def run(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
@@ -34,11 +107,17 @@ class Receiver(Process):
             try:
                 data, addr = sock.recvfrom(1024)
             except socket.error:
-
                 self.logger.log("Socket Error")
                 pass
             else:
-                pass
+                stock_idx, more_package = struct.unpack("ii", data[0:8])
+                if not (stock_idx in self.cache):
+                    self.cache[stock_idx] = data[8:]
+                else:
+                    self.cache[stock_idx] += data[8:]
+                if more_package == 0:
+                    temp = json.loads(self.cache.pop(stock_idx).decode())
+                    self.shared_memory[stock_idx] += temp['data']
 
 
 class Dealer(Process):
@@ -56,55 +135,20 @@ class Dealer(Process):
                 if len(value) == 0:
                     continue
 
-PACKAGE_SIZE = 512
-
-
-def pack(stock_idx, data):
-    header = {
-        'stock_idx': stock_idx,
-        'data': data,
-    }
-    temp = json.dumps(header).encode()
-    total_length = len(temp)
-    data_size = PACKAGE_SIZE - 8
-    print(type(total_length), type(data_size))
-    pack_num = int(total_length / data_size)
-    packages = [struct.pack("ii", stock_idx, 1) +
-                temp[i * data_size:min(total_length, (i + 1) * data_size)]
-                for i in range(pack_num)]
-    last_pack = struct.pack("ii", stock_idx, 0) + temp[pack_num * data_size:]
-    packages.append(last_pack)
-    return packages
-
-
-def unpack(data_list):
-    b = bytes()
-    for data in data_list:
-        stock_idx, more_package = struct.unpack("ii", data[0:8])
-        b = b + data[8:]
-        if more_package == 0:
-            print("stop")
-    temp = json.loads(b.decode())
-    print(len(temp['data']))
-    return temp['data']
+    def process(self, stock_idx, data):
+        if not (stock_idx in self.queue):
+            self.queue[stock_idx] = Stock(stock_idx)
 
 
 if __name__ == "__main__":
-    import numpy as np
-    import sys
+    dealer = Dealer()
+    manager = Manager()
+    shared_memory = manager.dict()
 
-    data = [random.random() for i in range(123456)]
-    print(sys.getsizeof(data))
-    packages = pack(100, data)
-    print(data == unpack(packages))
-    # dealer = Dealer()
-    # manager = Manager()
-    # shared_memory = manager.dict()
-    #
-    # receiver = Receiver(shared_memory)
-    # dealer = Dealer(shared_memory)
-    # receiver.start()
-    # dealer.start()
+    receiver = Receiver(shared_memory)
+    dealer = Dealer(shared_memory)
+    receiver.start()
+    dealer.start()
 
-    # a = Process(target=dealer.process, args=(shared_memory,))
-    # b = Process(target=receiver.receive, args=(shared_memory,))
+    a = Process(target=dealer.process, args=(shared_memory,))
+    b = Process(target=receiver.receive, args=(shared_memory,))
