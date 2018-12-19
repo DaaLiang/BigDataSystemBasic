@@ -12,13 +12,15 @@ class listenServer():
         self.futures = None
 
 
-    def run(self, futures_list):
-        sock = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)  # Internet family, TCP type
-        sock.bind(SequencerConfig.LISTEN_PORT)
-        # TODO
-        sock.listen(5)
+    def run(self, futures_list, lock):
         self.futures = futures_list
-        # print('Listening at port ', SequencerConfig.LISTEN_PORT)
+
+        sock = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
+        sock.bind(SequencerConfig.LISTEN_PORT)
+        sock.listen(SequencerConfig.LISTEN_NUM)
+
+        # total = 0
+
         while True:
             conn, address = sock.accept()
             buffer = None
@@ -30,17 +32,19 @@ class listenServer():
                     buffer = data
                 else:
                     buffer += data
-                print(len(buffer), len(data))
-            temp = buffer.decode()
-            future = json.loads(temp)
+                #print(len(buffer), len(data))
+            future = json.loads(buffer.decode())
+
+            lock.acquire()
+            self.futures += list(future['data'])
+            # total += len(future['data'])
+            # print (total)
+            lock.release()
 
             # TODO
-            print('received from ', address)
-            # future = self.__executors.submit(lambda con:con.recv(SequencerConfig.RECV_BUFF_SIZE), conn)
-            # self.__sync.acquire()
-            self.futures += list(future['data'])
-            print(len(self.futures), self.futures)
-            # self.__sync.release()
+            # print('received from ', address, ' data length : ', len(buffer))
+            # print('current received items: ', len(self.futures), ' ', self.futures)
+
 
 if __name__ == "__main__":
     listener = listenServer()
