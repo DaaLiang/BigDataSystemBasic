@@ -12,7 +12,8 @@ import socket
 def socket_client(dataLen, data):
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect(('127.0.0.1', 6666))
+        # s.connect(('127.0.0.1', 6666))
+        s.connect(('219.223.181.197', 6666))
     except socket.error as msg:
         print(msg)
         sys.exit(1)
@@ -44,12 +45,13 @@ if __name__ == '__main__':
     newStockOfferTuple = ()
     flag = True
     while flag:
-        # flag = False
+        flag = False
         time.sleep(1)
         for i in range(stockAccount):
             newStockOfferTuple = ()
             for j in range(buyOrSellTag):
-                timeBegin = time.time()
+                #timeBegin = time.time()
+                timeBegin = 0
                 for k in range(offerAccount):
                     stockArray[i][j][0][:], stockArray[i][j][1][:] = generateQuotation(presentStockPrice[i]['Price'],
                                                                                        offerAccount)
