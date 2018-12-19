@@ -8,4 +8,4 @@ class Logger:
 
     def log(self, event):
         if self.debug:
-            print("[%10s]: %s" % (self.name, event))
+            print("[%15s]: %s" % (self.name, event))

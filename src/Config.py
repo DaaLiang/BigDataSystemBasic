@@ -13,6 +13,7 @@ class DealerConfig(Config):
     MULTICAST_GROUP = '224.1.1.1'
 
 
+
 class SequencerConfig(Config):
     # DEBUG = False
     MULTICAST_GROUP = '224.1.1.1'
