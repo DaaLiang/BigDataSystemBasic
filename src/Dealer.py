@@ -9,8 +9,6 @@ import socket
 
 import struct
 import json
-import queue
-import numpy as np
 
 SENDERIP = '0.0.0.0'
 MYPORT = 1234
@@ -117,7 +115,10 @@ class Receiver(Process):
                     self.cache[stock_idx] += data[8:]
                 if more_package == 0:
                     temp = json.loads(self.cache.pop(stock_idx).decode())
-                    self.shared_memory[stock_idx] += temp['data']
+                    if stock_idx in self.shared_memory:
+                        self.shared_memory[stock_idx] += temp['data']
+                    else:
+                        self.shared_memory[stock_idx] = temp['data']
 
 
 class Dealer(Process):
@@ -125,6 +126,7 @@ class Dealer(Process):
         self.logger = Logger("Deal Dealer", DealerConfig.DEBUG)
         self.shared_memory = shared_memory
         self.queue = {}
+        self.info = {}
 
     def run(self):
         while True:
@@ -134,10 +136,27 @@ class Dealer(Process):
             for key, value in self.shared_memory:
                 if len(value) == 0:
                     continue
+                mean_price, deal_num = self.process(key, self.shared_memory.pop(key))
+                self.info[key] = (mean_price, deal_num)
+            # TODO 将获得的信息发送至DealController
 
     def process(self, stock_idx, data):
         if not (stock_idx in self.queue):
             self.queue[stock_idx] = Stock(stock_idx)
+        for unit in data:
+            # TODO 按照数据格式调整
+            total_sell = [0, 0]
+            total_buy = [0, 0]
+            if unit[0] == 1:
+                price, num = self.queue[stock_idx].sell(unit[1], unit[2])
+                total_sell[0] += price
+                total_sell[1] += num
+            else:
+                price, num = self.queue[stock_idx].buy(unit[1], unit[2])
+                total_buy[0] += price
+                total_buy[1] += num
+        mean_price = (total_sell[0] + total_buy[0]) * 1.0 / (total_sell[1] + total_buy[1])
+        return mean_price, total_buy[1] + total_sell[1]
 
 
 if __name__ == "__main__":

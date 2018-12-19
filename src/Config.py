@@ -13,7 +13,6 @@ class DealerConfig(Config):
     MULTICAST_GROUP = '224.1.1.1'
 
 
-
 class SequencerConfig(Config):
     # DEBUG = False
     MULTICAST_GROUP = '224.1.1.1'
@@ -26,6 +25,15 @@ class SequencerConfig(Config):
     ELAPSE = 0.1
 
     MULTICAST_ADD = ('192.168.0.1', 60003)
-    SENDER_ADD =('0.0.0.0', 6000)
+    SENDER_ADD = ('0.0.0.0', 6000)
     MAX_SENDER = 8
     BATCH_SIZE = 100
+
+
+class DealControllerConfig(Config):
+    DEALER = [
+        ("192.168.0.102", 6789),
+        ("192.168.0.103", 6789),
+        ("192.168.0.104", 6789),
+    ]
+
