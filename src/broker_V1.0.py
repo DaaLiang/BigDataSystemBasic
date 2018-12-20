@@ -1,3 +1,4 @@
+#!/usr/bin/python
 # -*- coding: UTF-8 -*-
 
 import numpy as np
@@ -11,13 +12,15 @@ import socket
 
 def socket_client(dataLen, data):
     try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect(('10.85.0.60', 6666))
+        # s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s = socket.socket()
+        print(('192.168.0.102', 7777))
+        s.connect(('192.168.0.102', 7777))
     except socket.error as msg:
         print(msg)
         sys.exit(1)
     s.send(dataLen.encode())
-    time.sleep(1)
+    # time.sleep(1)
     judge = s.recv(1024)
     if judge:
         s.send(data)
@@ -44,7 +47,7 @@ if __name__ == '__main__':
     newStockOfferTuple = ()
     flag = True
     while flag:
-        # flag = False
+        flag = False
         time.sleep(1)
         for i in range(stockAccount):
             newStockOfferTuple = ()

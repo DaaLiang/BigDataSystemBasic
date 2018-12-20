@@ -9,6 +9,7 @@ from Config import DealControllerConfig
 
 class Subscriber(Process):
     def __init__(self, shared_memory):
+        Process.__init__()
         self.shared_memory = shared_memory
         self.shared_memory['consumption'] = {0: 0, 1: 0, 2: 0}
         self.shared_memory['detailed_consumption'] = {}
@@ -41,8 +42,9 @@ class Subscriber(Process):
             if not (stock in self.shared_memory['detailed_consumption']):
                 self.shared_memory['detailed_consumption'][stock] = 3 * deal_num + request_num
             else:
-                self.shared_memory['detailed_consunption'][stock] = DealControllerConfig.ConsuptionCalc(self.shared_memory['detailed_consunption'][
-                                                                        stock], (3 * deal_num + request_num) * 0.7)
+                self.shared_memory['detailed_consunption'][stock] = DealControllerConfig.ConsuptionCalc(
+                    self.shared_memory['detailed_consunption'][
+                        stock], (3 * deal_num + request_num) * 0.7)
             total_consumption += 3 * deal_num + request_num
         self.shared_memory['consumption'][machine] = self.shared_memory['consumption'][machine] * 0.3 + \
                                                      total_consumption * 0.7
@@ -53,6 +55,7 @@ class Subscriber(Process):
 # Publisher负责将收到的信息发送至各个服务器
 class DealController(Process):
     def __init__(self, shared_list):
+        Process.__init__()
         self.shared_list = shared_list
         pass
 
@@ -93,6 +96,7 @@ class Publisher(Process):
         pass
 
     def run(self):
+        # 给服务器发布汇总信息
         pass
 
 
@@ -106,6 +110,4 @@ if __name__ == "__main__":
     controller.join()
     publisher.join()
 
-    # print(controller.PID)
-    # print(publisher.PID)
     pass

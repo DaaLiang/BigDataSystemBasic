@@ -4,7 +4,6 @@
 from Logger import Logger
 from Config import DealerConfig
 from multiprocessing import Process, Manager
-import time
 import socket
 
 import struct
@@ -20,6 +19,12 @@ class Stock(object):
         self.stock_id = stock_id
         self.prices_sell = []  # k:卖价 v:股数
         self.prices_buy = []  # k:买价 v:股数
+
+    def get_queue(self):
+        return {
+            "sell": self.prices_sell,
+            "buy": self.prices_buy
+        }
 
     def add_to_buyer(self, price, amount):  # 按从大到小排序
         idx = len(self.prices_buy)
@@ -88,6 +93,8 @@ class Stock(object):
 
 class Receiver(Process):
     def __init__(self, shared_memory):
+        Process.__init__()
+
         self.logger = Logger("Deal Receiver", DealerConfig.DEBUG)
         self.shared_memory = shared_memory
         self.machine_idx = 0
@@ -141,25 +148,27 @@ class Receiver(Process):
 
 
 class Dealer(Process):
-    def __init__(self, shared_memory, dealer_info):
+    def __init__(self, shared_memory):
+        Process.__init__()
         self.logger = Logger("Deal Dealer", DealerConfig.DEBUG)
         self.shared_memory = shared_memory
-        self.dealer_info = dealer_info
+        # self.dealer_info = dealer_info
         self.queue = {}
-        self.info = {}
+        # self.info = {}
 
     def run(self):
         while True:
             if len(self.shared_memory) == 0:
                 continue
 
-            for key, value in self.shared_memory:
+            self.info = {}
+            for key, value in self.shared_memory['stock']:
                 if len(value) == 0:
                     continue
                 mean_price, deal_num = self.process(key, self.shared_memory.pop(key))
-                self.info[key] = {
-                    "machine_idx":
-                }
+                # self.shared_memory['info'][key]['price'] = mean_price
+                # self.shared_memory['info'][key]['deal_num'] = deal_num
+                # self.shared_memory['info'][key]['request_num'] = len(value)
             # TODO 将获得的信息发送至DealController
 
     def process(self, stock_idx, data):
@@ -188,7 +197,7 @@ if __name__ == "__main__":
     dealer_info = manager.dict()
 
     receiver = Receiver(shared_memory)
-    dealer = Dealer(shared_memory, dealer_info)
+    dealer = Dealer(shared_memory)
     receiver.start()
     dealer.start()
     receiver.join()
