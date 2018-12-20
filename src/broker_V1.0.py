@@ -8,14 +8,15 @@ import time
 import re
 import sys
 import socket
+from Config import BrokerConfig
 
 
 def socket_client(dataLen, data):
     try:
         # s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s = socket.socket()
-        print(('192.168.0.102', 7777))
-        s.connect(('192.168.0.102', 7777))
+        #s.connect(('127.0.0.1', 7777))
+        s.connect(BrokerConfig.SEND_SOCKET)
     except socket.error as msg:
         print(msg)
         sys.exit(1)
@@ -47,7 +48,7 @@ if __name__ == '__main__':
     newStockOfferTuple = ()
     flag = True
     while flag:
-        flag = False
+        #flag = False
         time.sleep(1)
         for i in range(stockAccount):
             newStockOfferTuple = ()

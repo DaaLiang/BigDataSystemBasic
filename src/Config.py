@@ -9,6 +9,19 @@ class Config(object):
 
 
 # 不同节点配置，派生基类
+
+
+#交易数据生成的机器，李鑫机，向老叶机发送信息
+class BrokerConfig(Config):
+    SEND_SOCKET = ("127.0.0.1", 6668)
+
+class Network2(Config):
+    RECV_SOCKET = ("127.0.0.1", 6668)
+    #接受李鑫的socket
+    SEND_SOCKET = ("127.0.0.1", 6669)
+    
+
+
 class DealerConfig(Config):
     LISTEN_SOCKET = ("0.0.0.0", 23456)
     JOB_SOCKET = ("0.0.0.0", Config.DEALER_JOB_PORT)
@@ -16,21 +29,21 @@ class DealerConfig(Config):
 
 
 class SequencerConfig(Config):
-    # DEBUG = False
-    MULTICAST_GROUP = '224.1.1.1'
+    # 排序时间间隔，应该和 broker 的收集时间间隔相等
+    INTERVAL = 1
 
-    MAX_LISTENER = 8
-    LISTEN_PORT = ("127.0.0.1", 6667)
+    # 监听 broker 的端口
+    LISTEN_PORT = ("0.0.0.0", 6669)
+    # 最大监听连接数量
+    LISTEN_NUM = 5
+    # 缓冲区大小
     RECV_BUFF_SIZE = 4096
 
-    INTERVAL = 0.05
-    ELAPSE = 0.1
-
-    MULTICAST_ADD = ('192.168.0.1', 60003)
-    SENDER_ADD = ('0.0.0.0', 6000)
-    MAX_SENDER = 8
-    BATCH_SIZE = 100
-
+    # 组播的源地址
+    SENDER_ADD = ('192.168.0.101', 60001)
+    # SENDER_ADD = ('10.13.2.149', 60001)
+    # 组播的目的地址
+    MULTICAST_DST = (DealerConfig.MULTICAST_GROUP, DealerConfig.LISTEN_SOCKET[1])
 
 class DealControllerConfig(Config):
     DEALERS = [
