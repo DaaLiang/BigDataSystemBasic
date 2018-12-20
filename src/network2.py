@@ -91,7 +91,7 @@ class Checker(Process):
                     # s.send(dataLen.encode())
                     # time.sleep(1)
                     header = {
-                        'data'
+                        'data' : data_trans,
                     }
                     s.send(json.dumps(header).encode())
                     s.close()
