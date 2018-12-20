@@ -93,7 +93,7 @@ class Stock(object):
 
 class Receiver(Process):
     def __init__(self, shared_memory):
-        Process.__init__()
+        Process.__init__(self)
 
         self.logger = Logger("Deal Receiver", DealerConfig.DEBUG)
         self.shared_memory = shared_memory
@@ -149,7 +149,7 @@ class Receiver(Process):
 
 class Dealer(Process):
     def __init__(self, shared_memory):
-        Process.__init__()
+        Process.__init__(self)
         self.logger = Logger("Deal Dealer", DealerConfig.DEBUG)
         self.shared_memory = shared_memory
         # self.dealer_info = dealer_info
@@ -191,7 +191,7 @@ class Dealer(Process):
 
 
 if __name__ == "__main__":
-    dealer = Dealer()
+    # dealer = Dealer()
     manager = Manager()
     shared_memory = manager.dict()
     dealer_info = manager.dict()

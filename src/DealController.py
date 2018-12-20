@@ -92,6 +92,7 @@ class DealController(Process):
 
 class Publisher(Process):
     def __init__(self, shared_list):
+        Process.__init__()
         self.shared_list = shared_list
         pass
 

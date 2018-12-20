@@ -11,7 +11,7 @@ class Config(object):
 # 不同节点配置，派生基类
 class DealerConfig(Config):
     LISTEN_SOCKET = ("0.0.0.0", 23456)
-    JOB_SOCKET = ("0.0.0.0", super.DEALER_JOB_PORT)
+    JOB_SOCKET = ("0.0.0.0", Config.DEALER_JOB_PORT)
     MULTICAST_GROUP = '224.1.1.1'
 
 
@@ -34,9 +34,9 @@ class SequencerConfig(Config):
 
 class DealControllerConfig(Config):
     DEALERS = [
-        ("192.168.0.102", super.DEALER_JOB_PORT),
-        ("192.168.0.103", super.DEALER_JOB_PORT),
-        ("192.168.0.104", super.DEALER_JOB_PORT89),
+        ("192.168.0.102", Config.DEALER_JOB_PORT),
+        ("192.168.0.103", Config.DEALER_JOB_PORT),
+        ("192.168.0.104", Config.DEALER_JOB_PORT),
     ]
     LISTEN_SOCKET = ("0.0.0.0", 7777)
     STOCK_NUM = 10,
