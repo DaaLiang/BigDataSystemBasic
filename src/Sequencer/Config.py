@@ -25,7 +25,7 @@ class Network2(Config):
 class DealerConfig(Config):
     LISTEN_SOCKET = ("0.0.0.0", 23456)
     JOB_SOCKET = ("0.0.0.0", Config.DEALER_JOB_PORT)
-    MULTICAST_GROUP = '224.1.1.1'
+    MULTICAST_GROUP = ('224.1.1.1', 23456)
 
 
 class SequencerConfig(Config):

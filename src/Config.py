@@ -5,27 +5,29 @@
 # 基类，调试作用
 class Config(object):
     DEBUG = False
-    DEALER_JOB_PORT = 7002   # 撮合机监听端口
+    DEALER_JOB_PORT = 7002  # 撮合机监听端口
 
 
 # 不同节点配置，派生基类
 
 
-#交易数据生成的机器，李鑫机，向老叶机发送信息
+# 交易数据生成的机器，李鑫机，向老叶机发送信息
 class BrokerConfig(Config):
     SEND_SOCKET = ("127.0.0.1", 6668)
 
+
 class Network2(Config):
     RECV_SOCKET = ("127.0.0.1", 6668)
-    #接受李鑫的socket
+    # 接受李鑫的socket
     SEND_SOCKET = ("127.0.0.1", 6669)
-    
 
 
 class DealerConfig(Config):
     LISTEN_SOCKET = ("0.0.0.0", 23456)
     JOB_SOCKET = ("0.0.0.0", Config.DEALER_JOB_PORT)
-    MULTICAST_GROUP = '224.1.1.1'
+    MULTICAST_GROUP = ('224.1.1.1', 23456)
+    MYGROUP = '224.1.1.1'
+    SENDERIP = '192.168.101'
 
 
 class SequencerConfig(Config):
@@ -45,12 +47,13 @@ class SequencerConfig(Config):
     # 组播的目的地址
     MULTICAST_DST = (DealerConfig.MULTICAST_GROUP, DealerConfig.LISTEN_SOCKET[1])
 
+
 class DealControllerConfig(Config):
     DEALERS = [
         ("127.0.0.1", Config.DEALER_JOB_PORT),
-        #("192.168.0.102", Config.DEALER_JOB_PORT),
-        #("192.168.0.103", Config.DEALER_JOB_PORT),
-        #("192.168.0.104", Config.DEALER_JOB_PORT),
+        # ("192.168.0.102", Config.DEALER_JOB_PORT),
+        # ("192.168.0.103", Config.DEALER_JOB_PORT),
+        # ("192.168.0.104", Config.DEALER_JOB_PORT),
     ]
     LISTEN_SOCKET = ("0.0.0.0", 7777)
     STOCK_NUM = 10,
