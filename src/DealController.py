@@ -55,17 +55,17 @@ class Subscriber(Process):
 # Publisher负责将收到的信息发送至各个服务器
 class DealController(Process):
     def __init__(self, shared_list):
-        Process.__init__()
+        Process.__init__(self)
         self.shared_list = shared_list
         pass
 
     def init(self):
         jobs = [[], [], []]
-        for i in range(DealControllerConfig.STOCK_NUM):
+        for i in range(DealControllerConfig.STOCK_NUM[0]):
             jobs[i % 3].append(i)
 
         for machine_idx in range(len(DealControllerConfig.DEALERS)):
-            success = self.wakeup_machine(DealControllerConfig.DEALERS,
+            success = self.wakeup_machine(DealControllerConfig.DEALERS[machine_idx],
                                           machine_idx, jobs[machine_idx])
             if not success:
                 print("Machine %d Not Connected" % machine_idx)
@@ -92,7 +92,7 @@ class DealController(Process):
 
 class Publisher(Process):
     def __init__(self, shared_list):
-        Process.__init__()
+        Process.__init__(self)
         self.shared_list = shared_list
         pass
 
