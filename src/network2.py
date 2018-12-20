@@ -6,7 +6,7 @@ import sys
 import threading
 import socket
 from multiprocessing import Manager, Process, Lock
-
+from Config import Network2
 
 class Receiver(Process):
     def __init__(self, shared_memory, lock):
@@ -20,7 +20,7 @@ class Receiver(Process):
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             # 防止socket server重启后端口被占用（socket.error: [Errno 98] Address already in use）
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            s.bind(('0.0.0.0', 7777))
+            s.bind(Network2.RECV_SOCKET)
             s.listen(10)
         except socket.error as msg:
             print(msg)
@@ -87,7 +87,7 @@ class Checker(Process):
                     self.lock.release()
                     try:
                         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                        s.connect(('127.0.0.1', 6667))
+                        s.connect(Network2.SEND_SOCKET)
                     except socket.error as msg:
                         print(msg)
                         sys.exit(1)
