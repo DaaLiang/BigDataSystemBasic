@@ -90,9 +90,26 @@ class Receiver(Process):
     def __init__(self, shared_memory):
         self.logger = Logger("Deal Receiver", DealerConfig.DEBUG)
         self.shared_memory = shared_memory
+        self.machine_idx = 0
+        self.jobs = []
         self.cache = {}
 
+    def init(self):
+        job_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        job_socket.bind(DealerConfig.JOB_SOCKET)
+        job_socket.listen(5)
+        conn, addr = job_socket.accept()
+        header = json.loads(conn.recv(1024).decode())
+        self.jobs = header["jobs"]
+        self.machine_idx = header["id"]
+        self.shared_memory["info"] = {
+            "jobs": header['jobs'],
+            'machine_idx': header['id']
+        }
+        conn.close()
+
     def run(self):
+        self.init()
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind(DealerConfig.MULTICAST_GROUP)
@@ -109,6 +126,8 @@ class Receiver(Process):
                 pass
             else:
                 stock_idx, more_package = struct.unpack("ii", data[0:8])
+                if stock_idx not in self.jobs:
+                    continue
                 if not (stock_idx in self.cache):
                     self.cache[stock_idx] = data[8:]
                 else:
@@ -116,15 +135,16 @@ class Receiver(Process):
                 if more_package == 0:
                     temp = json.loads(self.cache.pop(stock_idx).decode())
                     if stock_idx in self.shared_memory:
-                        self.shared_memory[stock_idx] += temp['data']
+                        self.shared_memory['stock'][stock_idx] += temp['data']
                     else:
-                        self.shared_memory[stock_idx] = temp['data']
+                        self.shared_memory['stock'][stock_idx] = temp['data']
 
 
 class Dealer(Process):
-    def __init__(self, shared_memory):
+    def __init__(self, shared_memory, dealer_info):
         self.logger = Logger("Deal Dealer", DealerConfig.DEBUG)
         self.shared_memory = shared_memory
+        self.dealer_info = dealer_info
         self.queue = {}
         self.info = {}
 
@@ -137,7 +157,9 @@ class Dealer(Process):
                 if len(value) == 0:
                     continue
                 mean_price, deal_num = self.process(key, self.shared_memory.pop(key))
-                self.info[key] = (mean_price, deal_num)
+                self.info[key] = {
+                    "machine_idx":
+                }
             # TODO 将获得的信息发送至DealController
 
     def process(self, stock_idx, data):
@@ -163,11 +185,11 @@ if __name__ == "__main__":
     dealer = Dealer()
     manager = Manager()
     shared_memory = manager.dict()
+    dealer_info = manager.dict()
 
     receiver = Receiver(shared_memory)
-    dealer = Dealer(shared_memory)
+    dealer = Dealer(shared_memory, dealer_info)
     receiver.start()
     dealer.start()
-
-    a = Process(target=dealer.process, args=(shared_memory,))
-    b = Process(target=receiver.receive, args=(shared_memory,))
+    receiver.join()
+    dealer.join()

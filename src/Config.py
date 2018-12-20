@@ -5,11 +5,13 @@
 # 基类，调试作用
 class Config(object):
     DEBUG = False
+    DEALER_JOB_PORT = 6789   # 撮合机监听端口
 
 
 # 不同节点配置，派生基类
 class DealerConfig(Config):
     LISTEN_SOCKET = ("0.0.0.0", 23456)
+    JOB_SOCKET = ("0.0.0.0", super.DEALER_JOB_PORT)
     MULTICAST_GROUP = '224.1.1.1'
 
 
@@ -31,9 +33,13 @@ class SequencerConfig(Config):
 
 
 class DealControllerConfig(Config):
-    DEALER = [
-        ("192.168.0.102", 6789),
-        ("192.168.0.103", 6789),
-        ("192.168.0.104", 6789),
+    DEALERS = [
+        ("192.168.0.102", super.DEALER_JOB_PORT),
+        ("192.168.0.103", super.DEALER_JOB_PORT),
+        ("192.168.0.104", super.DEALER_JOB_PORT89),
     ]
+    LISTEN_SOCKET = ("0.0.0.0", 7777)
+    STOCK_NUM = 10,
 
+    def ConsuptionCalc(self, last, new):
+        return last * 0.3 + new * 0.7
