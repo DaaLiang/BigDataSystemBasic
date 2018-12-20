@@ -149,12 +149,14 @@ if __name__ == '__main__':
     shared_memory = Manager().list()
     # shared_memory = []
     receiver = Receiver(shared_memory, lock)
-
+    checker = Checker(shared_memory, lock)
     #a = Process(target=socket_service, args=(shared_memory, lock))
     # b = multiprocessing.Process(target=checker, args=(shared_memory, lock))
     # c = multiprocessing.Process(target=socket_service2())
     receiver.start()
+    checker.start()
     receiver.join()
+    checker.join()
     # b.start()
     # c.start()
     #a.join()
