@@ -5,7 +5,7 @@
 # 基类，调试作用
 class Config(object):
     DEBUG = False
-    DEALER_JOB_PORT = 6789   # 撮合机监听端口
+    DEALER_JOB_PORT = 7002   # 撮合机监听端口
 
 
 # 不同节点配置，派生基类
@@ -20,7 +20,7 @@ class SequencerConfig(Config):
     MULTICAST_GROUP = '224.1.1.1'
 
     MAX_LISTENER = 8
-    LISTEN_PORT = ("0.0.0.0", 60001)
+    LISTEN_PORT = ("127.0.0.1", 6667)
     RECV_BUFF_SIZE = 4096
 
     INTERVAL = 0.05
@@ -34,9 +34,10 @@ class SequencerConfig(Config):
 
 class DealControllerConfig(Config):
     DEALERS = [
-        ("192.168.0.102", Config.DEALER_JOB_PORT),
-        ("192.168.0.103", Config.DEALER_JOB_PORT),
-        ("192.168.0.104", Config.DEALER_JOB_PORT),
+        ("127.0.0.1", Config.DEALER_JOB_PORT),
+        #("192.168.0.102", Config.DEALER_JOB_PORT),
+        #("192.168.0.103", Config.DEALER_JOB_PORT),
+        #("192.168.0.104", Config.DEALER_JOB_PORT),
     ]
     LISTEN_SOCKET = ("0.0.0.0", 7777)
     STOCK_NUM = 10,

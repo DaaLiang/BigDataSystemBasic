@@ -162,7 +162,9 @@ class Dealer(Process):
                 continue
 
             self.info = {}
-            for key, value in self.shared_memory['stock']:
+            if not ('stock' in self.shared_memory):
+                continue
+            for key, value in self.shared_memory['stock'].iteritems():
                 if len(value) == 0:
                     continue
                 mean_price, deal_num = self.process(key, self.shared_memory.pop(key))
@@ -195,7 +197,6 @@ if __name__ == "__main__":
     manager = Manager()
     shared_memory = manager.dict()
     dealer_info = manager.dict()
-
     receiver = Receiver(shared_memory)
     dealer = Dealer(shared_memory)
     receiver.start()

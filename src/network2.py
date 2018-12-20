@@ -35,7 +35,6 @@ class Receiver(Process):
                 datatemp = conn.recv(1024)
                 if not datatemp:
                     break
-                # print("size:" + str(len(datatemp)))
                 dataJson += datatemp
             print(len(dataJson))
             self.buffer(dataJson)
@@ -61,6 +60,7 @@ class Receiver(Process):
 
 
 # 示例数据
+
 # (股票编号， 0买1卖， 股数， 时间)
 # (0, 0, 2.95, 6900.0, 1545305525.0127)
 class Checker(Process):
@@ -108,7 +108,7 @@ def socket_service2():
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # 防止socket server重启后端口被占用（socket.error: [Errno 98] Address already in use）
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        s.bind(('0.0.0.0', 7777))
+        s.bind(('127.0.0.1', 7778))
         s.listen(10)
     except socket.error as msg:
         print(msg)
