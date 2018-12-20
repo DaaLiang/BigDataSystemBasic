@@ -9,10 +9,6 @@ import socket
 import struct
 import json
 
-SENDERIP = '0.0.0.0'
-MYPORT = 1234
-MYGROUP = '224.1.1.1'
-
 
 class Stock(object):
     def __init__(self, stock_id):
@@ -103,6 +99,8 @@ class Receiver(Process):
 
     def init(self):
         job_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        job_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
         job_socket.bind(DealerConfig.JOB_SOCKET)
         job_socket.listen(5)
         conn, addr = job_socket.accept()
@@ -113,6 +111,7 @@ class Receiver(Process):
             "jobs": header['jobs'],
             'machine_idx': header['id']
         }
+        conn.send("confirm".encode())
         conn.close()
 
     def run(self):
@@ -122,7 +121,7 @@ class Receiver(Process):
         sock.bind(DealerConfig.MULTICAST_GROUP)
         sock.setsockopt(socket.IPPROTO_IP,
                         socket.IP_ADD_MEMBERSHIP,
-                        socket.inet_aton(MYGROUP) + socket.inet_aton(SENDERIP))
+                        socket.inet_aton(DealerConfig.MYGROUP) + socket.inet_aton(DealerConfig.SENDERIP))
 
         sock.setblocking(0)
         while True:
@@ -145,6 +144,7 @@ class Receiver(Process):
                         self.shared_memory['stock'][stock_idx] += temp['data']
                     else:
                         self.shared_memory['stock'][stock_idx] = temp['data']
+                print("received: %d" % len(temp))
 
 
 class Dealer(Process):

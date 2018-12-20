@@ -87,7 +87,8 @@ class DealController(Process):
 
     def run(self):
         self.init()
-        pass
+        while True:
+            pass
 
 
 class Publisher(Process):
