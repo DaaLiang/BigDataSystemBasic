@@ -59,12 +59,15 @@ class Receiver(Process):
         # mylist=mylist+result_list
         # print sys.getsizeof(mylist)
 
+
+# 示例数据
+# (股票编号， 0买1卖， 股数， 时间)
+# (0, 0, 2.95, 6900.0, 1545305525.0127)
 class Checker(Process):
     def __init__(self, shared_memory, lock):
         Process.__init__(self)
         self.shared_memory = shared_memory
         self.lock = lock
-
 
     def run(self):
         print("正在监测通信服务器状态")
@@ -91,12 +94,10 @@ class Checker(Process):
                     # s.send(dataLen.encode())
                     # time.sleep(1)
                     header = {
-                        'data' : data_trans,
+                        'data': data_trans,
                     }
                     s.send(json.dumps(header).encode())
                     s.close()
-
-
 
 
 ##Listen information from   transaction & give it to the brokers
@@ -143,14 +144,13 @@ def deal_data2(conn, addr):
     trans(dataJson)
 
 
-
 if __name__ == '__main__':
     lock = Lock()
     shared_memory = Manager().list()
     # shared_memory = []
     receiver = Receiver(shared_memory, lock)
     checker = Checker(shared_memory, lock)
-    #a = Process(target=socket_service, args=(shared_memory, lock))
+    # a = Process(target=socket_service, args=(shared_memory, lock))
     # b = multiprocessing.Process(target=checker, args=(shared_memory, lock))
     # c = multiprocessing.Process(target=socket_service2())
     receiver.start()
@@ -159,7 +159,7 @@ if __name__ == '__main__':
     checker.join()
     # b.start()
     # c.start()
-    #a.join()
+    # a.join()
     # b.join()
     # c.join()
 
