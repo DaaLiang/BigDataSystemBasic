@@ -45,7 +45,7 @@ def Sequence(shared_list, lock):
         while True:
             if index == len(temp_list): break
             each = temp_list[index]
-            if now - each[4] > SequencerConfig.INTERVAL + SequencerConfig.INTERVAL:
+            if now - each[4] > SequencerConfig.INTERVAL + SequencerConfig.NETDELAY:
                 if stock_id.has_key(each[0]) == False:
                     stock_id[each[0]] = []
                 stock_id[each[0]].append(each)
