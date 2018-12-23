@@ -29,8 +29,11 @@ class DealerConfig(Config):
 
 
 class SequencerConfig(Config):
-    # 排序时间间隔，应该和 broker 的收集时间间隔相等
+    # 排序时间间隔，应该和 broker 的收集时间间隔相等 (s)
     INTERVAL = 1
+
+    # 网络传输延迟，用来调节每次排完序后可以发送的数据包 (s)
+    DELAY = 0.001
 
     # 监听 broker 的端口
     LISTEN_PORT = ("0.0.0.0", 6669)

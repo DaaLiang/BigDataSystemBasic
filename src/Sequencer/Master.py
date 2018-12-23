@@ -11,7 +11,7 @@ from Listener import listenServer
 from pack import pack
 
 
-def sendDate(stock_id, data):
+def sendData(stock_id, data):
     skt = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
     skt.bind(SequencerConfig.SENDER_ADD)
     packages = pack(stock_id, data)
@@ -45,7 +45,7 @@ def Sequence(shared_list, lock):
         while True:
             if index == len(temp_list): break
             each = temp_list[index]
-            if now - each[4] > SequencerConfig.INTERVAL:
+            if now - each[4] > SequencerConfig.INTERVAL + SequencerConfig.INTERVAL:
                 if stock_id.has_key(each[0]) == False:
                     stock_id[each[0]] = []
                 stock_id[each[0]].append(each)
@@ -57,7 +57,7 @@ def Sequence(shared_list, lock):
         # send messages
         if index == 0: continue
         for id in stock_id.keys():
-            sendDate(id, stock_id[id])
+            sendData(id, stock_id[id])
 
         # drain temp_list
         temp_list[0:index] = []
