@@ -30,27 +30,27 @@ def socket_client(dataLen, data):
 
 
 def generateQuotation(presentStockPrice, offerAccount):  # 股价，数量
-    eventTuple = ("dataLeakage", "revenueDrop", "tradeWar", "revenueGrowth", "DongGeInnocent",
-                  "None")  # 事件列表：数据泄露、营收下降、贸易战、营收增长、东哥无罪，无
+    eventTuple = ("数据泄漏", "销售生娃", "贸易战", "卖的贼好", "东哥是清白的",
+                  "没什么大事")  # 事件列表：数据泄露、营收下降、贸易战、营收增长、东哥无罪，无
     # event = eventTuple[random.randint(0, len(eventTuple) - 1)]  # 随机选择事件
     event = random.choice(eventTuple)
     # print event #打印事件
-    if event == "dataLeakage":
+    if event == "数据泄漏":
         newStockOfferList = np.random.uniform(presentStockPrice * 0.95, presentStockPrice * 0.99, size=offerAccount)
-    elif event == "revenueDrop":
+    elif event == "销售生娃":
         newStockOfferList = np.random.uniform(presentStockPrice * 0.90, presentStockPrice * 0.95, size=offerAccount)
-    elif event == "tradeWar":
+    elif event == "贸易战":
         newStockOfferList = np.random.uniform(presentStockPrice * 0.85, presentStockPrice * 0.90, size=offerAccount)
-    elif event == "revenueGrowth":
+    elif event == "卖的贼好":
         newStockOfferList = np.random.uniform(presentStockPrice * 1.01, presentStockPrice * 1.05, size=offerAccount)
-    elif event == "DongGeInnocent":
-        newStockOfferList = np.random.uniform(presentStockPrice * 1.05, presentStockPrice * 1.10, size=offerAccount)
+    elif event == "东哥是清白的":
+        newStockOfferList = np.random.uniform(presentStockPrice * 1.15, presentStockPrice * 1.20, size=offerAccount)
     else:
         newStockOfferList = np.random.uniform(presentStockPrice * 0.98, presentStockPrice * 1.02, size=offerAccount)
 
     newStockOfferList = np.around(newStockOfferList, decimals=2)
     newStockAmountList = np.random.randint(1, 100, size=offerAccount) * 100
-    return newStockOfferList, newStockAmountList
+    return newStockOfferList, newStockAmountList, event
 
 
 # def generateQuotation(presentStockPrice, offerAccount):
@@ -81,12 +81,15 @@ def update_price():
     return info, origin
 
 
-def print_price(price, origin):
+def print_price(price, origin, lastEvent):
     os.system('clear')
+    print("EVENT:%20s" % lastEvent)
+    print("%20s%15s %10s %10s" % ('名称', '单价', '涨幅(%)', '交易量'))
     for i in range(len(price)):
-        print("%20s%10.2f%10.2f" % (price[i][0],
-                                      price[i][1],
-                                      (price[i][1] / origin[i][1]) * 100 - 100.0))
+        print("%20s%10.2f%10.2f%10d" % (price[i][0],
+                                        price[i][1],
+                                        (price[i][1] / origin[i][1]) * 100 - 100.0,
+                                        int(price[i][2])))
         # print((price[i][1]/ origin[i][1]) * 100 - 100.0)
 
 
@@ -101,7 +104,7 @@ if __name__ == '__main__':
     offerAccount = 1000
     buyOrSellTag = 2
     stockArray = np.zeros((stockAccount, 2, 2, offerAccount))
-
+    lastEvent = 'Hello World'
     newStockOfferTuple = ()
     flag = True
     while flag:
@@ -109,15 +112,16 @@ if __name__ == '__main__':
         time.sleep(0.1)  # 每隔0.1秒发一次
         # 每次发布数据前，更新当前价格
         presentStockPrice, origin = update_price()
-        print_price(presentStockPrice, origin)
+        print_price(presentStockPrice, origin, lastEvent)
 
         for i in range(stockAccount):
             newStockOfferTuple = ()
             for j in range(buyOrSellTag):
                 timeBegin = time.time()
                 for k in range(offerAccount):
-                    stockArray[i][j][0][:], stockArray[i][j][1][:] = generateQuotation(presentStockPrice[i][1],
-                                                                                       offerAccount)
+                    stockArray[i][j][0][:], stockArray[i][j][1][:], lastEvent = generateQuotation(
+                        presentStockPrice[i][1],
+                        offerAccount)
                     newStockOfferTupleTemp = (
                         (
                             i, j, float('%.2f' % stockArray[i][j][0][k]), stockArray[i][j][1][k],

@@ -147,12 +147,12 @@ class Subscriber(Process):
     def __init__(self):
         Process.__init__(self)
         self.info = [
-            ['LeShiWang.SZ', 2.98],
-            ['AliBABA.US', 147.41],
-            ['TengXun.HK', 308.80],
-            ['MeiTuan.HK', 51.85],
-            ['XiaoMi.HK', 13.52],
-            ['JingDong.US', 21.84],
+            ['LeShiWang.SZ', 2.98, 0],
+            ['AliBABA.US', 147.41, 0],
+            ['TengXun.HK', 308.80, 0],
+            ['MeiTuan.HK', 51.85, 0],
+            ['XiaoMi.HK', 13.52, 0],
+            ['JingDong.US', 21.84, 0],
         ]
         self.original_price = [
             ['LeShiWang.SZ', 2.98],
@@ -167,6 +167,7 @@ class Subscriber(Process):
         new_info = header['info']
         for idx, info in new_info.items():
             self.info[int(idx)][1] = info[0]
+            self.info[int(idx)][2] = info[1]
 
     def publish(self, conn):
         header = {
