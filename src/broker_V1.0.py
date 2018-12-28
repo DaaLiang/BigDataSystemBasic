@@ -84,9 +84,9 @@ def update_price():
 def print_price(price, origin, lastEvent):
     os.system('clear')
     print("EVENT:%20s" % lastEvent)
-    print("%20s%15s %10s %10s" % ('名称', '单价', '涨幅(%)', '交易量'))
+    print("%20s%15s %12s %13s" % ('名称', '单价', '涨幅(%)', '交易量'))
     for i in range(len(price)):
-        print("%20s%10.2f%10.2f%10d" % (price[i][0],
+        print("%20s%10.2f%10.2f%13d" % (price[i][0],
                                         price[i][1],
                                         (price[i][1] / origin[i][1]) * 100 - 100.0,
                                         int(price[i][2])))
