@@ -5,13 +5,13 @@ scp Config.py 2018211007@szcluster.mmlab.top:~/src
 scp Dealer.py 2018211007@szcluster.mmlab.top:~/src
 scp DealController.py 2018211007@szcluster.mmlab.top:~/src
 scp Logger.py 2018211007@szcluster.mmlab.top:~/src
+scp Sequencer.py 2018211007@szcluster.mmlab.top:~/src
 
 
-
-scp Config.py 2018211007@szcluster.mmlab.top:~/src/Sequencer
-scp Sequencer/Listener.py 2018211007@szcluster.mmlab.top:~/src/Sequencer
-scp Sequencer/Master.py 2018211007@szcluster.mmlab.top:~/src/Sequencer
-scp Sequencer/pack.py 2018211007@szcluster.mmlab.top:~/src/Sequencer
+#scp Config.py 2018211007@szcluster.mmlab.top:~/src/Sequencer
+#scp Sequencer/Listener.py 2018211007@szcluster.mmlab.top:~/src/Sequencer
+#scp Sequencer/Master.py 2018211007@szcluster.mmlab.top:~/src/Sequencer
+#scp Sequencer/pack.py 2018211007@szcluster.mmlab.top:~/src/Sequencer
 # scp Sequencer/pack.py 2018211007@szcluster.mmlab.top:~/Sequencer
 
 

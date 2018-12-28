@@ -120,6 +120,7 @@ class Receiver(Process):
         conn.send("confirm".encode())
         conn.close()
 
+    # TODO Receiver在收到组播后向Sequencer要求对应的工作数据，取回后加入队列
     def run(self):
         self.init()
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
@@ -204,7 +205,6 @@ class Dealer(Process):
         count_sell = 0
         count_buy = 0
         for unit in data:
-            # TODO 按照数据格式调整
             # print(unit)
             if unit[1] == 1:
                 price, num = self.queue[stock_idx].sell(unit[2], unit[3])

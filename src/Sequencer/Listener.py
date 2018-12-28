@@ -41,7 +41,7 @@ class listenServer():
             # print (total)
             lock.release()
 
-            # TODO
+
             # print('received from ', address, ' data length : ', len(buffer))
             # print('current received items: ', len(self.futures), ' ', self.futures)
 
