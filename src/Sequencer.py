@@ -81,37 +81,35 @@ class Sequencer(Process):
         while True:
             # update the temp_list every INTERVAL seconds
             now = time.time()
-            if (now - last) > SequencerConfig.INTERVAL:
-                last = now
-                if len(self.shared_list) != 0:
-                    self.list_lock.acquire()
-                    temp_list += list(self.shared_list)
-                    self.shared_list[:] = []
-                    self.list_lock.release()
-                    temp_list.sort(key=lambda x: x[4])
-
-            # check and send temp_list items always
-            if len(temp_list) == 0:
+            if (now - last) < SequencerConfig.INTERVAL:
                 continue
-            now = time.time()
+
+            last = now
+            if len(self.shared_list) == 0:
+                continue
+            #print(len(self.shared_list))
+
+            self.list_lock.acquire()
+            temp_list = list(self.shared_list)
+            self.shared_list[:] = []
+            self.list_lock.release()
+            temp_list.sort(key=lambda x: x[4])
+
             index = 0
             stock_id = {}
-            push_back = []
-            while True:
-                if index == len(temp_list): break
-                each = temp_list[index]
-                if now - each[4] > SequencerConfig.INTERVAL + SequencerConfig.NETDELAY:
-                    if not (each[0] in stock_id):
-                        stock_id[each[0]] = []
-                    stock_id[each[0]].append(each)
-                    index += 1
-                    total += 1
+            for idx in range(len(temp_list)):
+                cur = temp_list[idx]
+                if now - cur[4] > SequencerConfig.INTERVAL + SequencerConfig.NETDELAY:
+                    if not (cur[0] in stock_id):
+                        stock_id[cur[0]] = []
+                    stock_id[cur[0]].append(cur)
                 else:
                     # 将不符合时间要求的放回
-                    push_back.append(each)
+                    index = idx
                     break
+
             self.list_lock.acquire()
-            self.shared_list += push_back
+            self.shared_list += temp_list[index:]
             self.list_lock.release()
 
             if len(stock_id.keys()) == 0:
@@ -126,11 +124,6 @@ class Sequencer(Process):
             # 将当前准备好的任务组播至各个dealer
             self.send_ready(ready_list)
 
-            # drain temp_list
-            temp_list[0:index] = []
-
-            # if total != 0:
-            #     print('num of messages sent ', total)
 
 
 class JobStore(Process):
@@ -160,7 +153,12 @@ class JobStore(Process):
         listen_dealer.bind(SequencerConfig.JOB_STORE_LISTEN)
         listen_dealer.listen(5)
         while True:
+
             conn, addr = listen_dealer.accept()
+            total = 0
+            for key, value in self.job_queue.items():
+                total += len(value)
+            print(total)
             data = conn.recv(1028)
             request = json.loads(data.decode())['request']
             # print("dealing connection from", addr)

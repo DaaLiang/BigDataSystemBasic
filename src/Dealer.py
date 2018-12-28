@@ -17,6 +17,24 @@ class Stock(object):
         self.prices_sell = []  # k:卖价 v:股数
         self.prices_buy = []  # k:买价 v:股数
 
+    def shrink(self, lowest, highest):
+        # shrink high
+        pointer_low = 0
+        pointer_high = len(self.prices_buy)
+        while pointer_high > pointer_low and self.prices_buy[pointer_high - 1][0] < lowest:
+            pointer_high -= 1
+        while pointer_low < pointer_high and self.prices_buy[pointer_low][0] > highest:
+            pointer_low += 1
+        self.prices_buy = self.prices_buy[pointer_low:pointer_high]
+        # shrink sell
+        pointer_low = 0
+        pointer_high = len(self.prices_sell)
+        while pointer_high > pointer_low and self.prices_sell[pointer_high - 1][0] > lowest:
+            pointer_high -= 1
+        while pointer_low < pointer_high and self.prices_sell[pointer_low][0] < highest:
+            pointer_low += 1
+        self.prices_sell = self.prices_sell[pointer_low:pointer_high]
+
     def get_queue(self):
         return {
             "sell": self.prices_sell,
@@ -223,14 +241,24 @@ class Dealer(Process):
                 mean_price, deal_num = self.process(key, requests)
                 if deal_num != 0:
                     info[key] = (mean_price, deal_num)
+
                 total_deal += deal_num
             # TODO 将获得的信息发送至DealController
             if len(info) != 0:
                 self.publish(info)
 
+    def shrink(self, stock_idx, mean_price):
+        highest = mean_price * 1.05
+        lowest = mean_price * 0.95
+        if not (stock_idx in self.queue):
+            return
+        self.queue[stock_idx].shrink(lowest, highest)
+
     def process(self, stock_idx, data):  # 处理交易
         if not (stock_idx in self.queue):
             self.queue[stock_idx] = Stock(stock_idx)
+        request_price = 0
+        request_num = 0
         total_sell = [0, 0]
         total_buy = [0, 0]
         count_sell = 0
@@ -247,12 +275,16 @@ class Dealer(Process):
                 total_buy[0] += price
                 total_buy[1] += num
                 count_buy += 1
+            request_price += unit[2] * unit[3]
+            request_num += unit[3]
         # print(len(self.queue[stock_idx].prices_sell), len(self.queue[stock_idx].prices_buy))
         # print(count_sell, count_buy)
         if total_sell[1] + total_buy[1] != 0:
             mean_price = (total_sell[0] + total_buy[0]) * 1.0 / (total_sell[1] + total_buy[1])
+            self.shrink(stock_idx, mean_price)  # 如果有成交，按成交价shrink
         else:
             mean_price = 0
+            self.shrink(stock_idx, request_price / request_num)  # 如果没成交，按请求均价shrink
         return mean_price, total_buy[1] + total_sell[1]
 
 

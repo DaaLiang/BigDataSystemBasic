@@ -106,7 +106,7 @@ if __name__ == '__main__':
     presentStockPrice = update_price()
     stockAccount = len(presentStockPrice)
     # offerAccount = 1000
-    offerAccount = 1000
+    offerAccount = 4000
     buyOrSellTag = 2
     stockArray = np.zeros((stockAccount, 2, 2, offerAccount))
 
