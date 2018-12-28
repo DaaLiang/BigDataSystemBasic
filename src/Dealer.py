@@ -3,7 +3,7 @@
 
 from Logger import Logger
 from Config import DealerConfig
-from multiprocessing import Process, Manager
+from multiprocessing import Process, Manager, Lock
 import socket
 
 import struct
@@ -91,7 +91,7 @@ class Stock(object):
 
 
 class Receiver(Process):
-    def __init__(self, shared_info, shared_job):
+    def __init__(self, shared_info, shared_job, info_lock, job_lock):
         Process.__init__(self)
 
         self.logger = Logger("Deal Receiver", DealerConfig.DEBUG)
@@ -99,6 +99,8 @@ class Receiver(Process):
         # self.shared_memory['stock'] = {}
         self.shared_info = shared_info
         self.shared_job = shared_job
+        self.info_lock = info_lock
+        self.job_lock = job_lock
         self.machine_idx = 0
         self.jobs = []
         self.cache = {}
@@ -113,12 +115,24 @@ class Receiver(Process):
         header = json.loads(conn.recv(1024).decode())
         self.jobs = header["jobs"]
         self.machine_idx = header["id"]
-        self.shared_info["info"] = {
-            "jobs": header['jobs'],
-            'machine_idx': header['id']
-        }
+        self.info_lock.acquire()
+        # self.shared_info = {
+        #     "jobs": header['jobs'],
+        #     'machine_idx': header['id']
+        # }
+        self.shared_info['machine_idx'] = header['id']
+        self.shared_info['jobs'] = header['jobs']
+        self.info_lock.release()
         conn.send("confirm".encode())
         conn.close()
+
+    def append_data(self, key, value):
+        self.job_lock.acquire()
+        if key in self.shared_job:
+            self.shared_job[key] += value
+        else:
+            self.shared_job[key] = value
+        self.job_lock.release()
 
     def run(self):
         self.init()
@@ -157,41 +171,62 @@ class Receiver(Process):
                         break
                     buffer += data
                 jobs = json.loads(buffer.decode())['data']
+
                 for stock_idx, job in jobs.items():
-                    if stock_idx in self.shared_job:
-                        self.shared_job[stock_idx] += job
-                    else:
-                        self.shared_job[stock_idx] = job
+                    self.append_data(stock_idx, job)
 
 
 class Dealer(Process):
-    def __init__(self, shared_info, shared_job):
+    def __init__(self, shared_info, shared_job, info_lock, job_lock):
         Process.__init__(self)
         self.logger = Logger("Deal Dealer", DealerConfig.DEBUG)
         self.shared_info = shared_info
         self.shared_job = shared_job
+        self.info_lock = info_lock
+        self.job_lock = job_lock
         # self.dealer_info = dealer_info
         self.queue = {}
         # self.info = {}
 
+    def pop_data(self, key):
+        self.job_lock.acquire()
+        data = self.shared_job.pop(key)
+        self.job_lock.release()
+        return data
+
+    def publish(self, info):
+        header = {
+            'info': info,
+            'machine': self.shared_info['machine_idx']
+        }
+        publish_socket = socket.socket()
+        publish_socket.connect(DealerConfig.CONTROLLER_SUBSCRIBE_SOCKET)
+        publish_socket.send(json.dumps(header).encode())
+        publish_socket.close()
+
     def run(self):
         lastPrint = 0
+        total_deal = 0
         while True:
-            # now = time.time()
-            # if now - lastPrint > 1.0:
-            #     lastPrint = now
-            #     print(len(self.shared_job))
+            now = time.time()
+            if now - lastPrint > 1.0:
+                print(now - lastPrint, total_deal, total_deal / (now - lastPrint))
+                lastPrint = now
+                total_deal = 0
+            info = {}
             for key in dict(self.shared_job):
                 # print(key)
                 if len(self.shared_job[key]) == 0:
                     continue
                 # TODO 添加每次处理交易量设置
-                mean_price, deal_num = self.process(key, self.shared_job.pop(key))
-                print(key, mean_price, deal_num)
-                # self.shared_memory['info'][key]['price'] = mean_price
-                # self.shared_memory['info'][key]['deal_num'] = deal_num
-                # self.shared_memory['info'][key]['request_num'] = len(value)
+                requests = self.pop_data(key)
+                mean_price, deal_num = self.process(key, requests)
+                if deal_num != 0:
+                    info[key] = (mean_price, deal_num)
+                total_deal += deal_num
             # TODO 将获得的信息发送至DealController
+            if len(info) != 0:
+                self.publish(info)
 
     def process(self, stock_idx, data):  # 处理交易
         if not (stock_idx in self.queue):
@@ -212,7 +247,7 @@ class Dealer(Process):
                 total_buy[0] += price
                 total_buy[1] += num
                 count_buy += 1
-        print(len(self.queue[stock_idx].prices_sell), len(self.queue[stock_idx].prices_buy))
+        # print(len(self.queue[stock_idx].prices_sell), len(self.queue[stock_idx].prices_buy))
         # print(count_sell, count_buy)
         if total_sell[1] + total_buy[1] != 0:
             mean_price = (total_sell[0] + total_buy[0]) * 1.0 / (total_sell[1] + total_buy[1])
@@ -222,15 +257,17 @@ class Dealer(Process):
 
 
 if __name__ == "__main__":
-    # dealer = Dealer()
     manager = Manager()
     shared_info = manager.dict()
-    # shared_info = {}
+    info_lock = Lock()
     shared_job = manager.dict()
-    # shared_job = {}
+    job_lock = Lock()
     dealer_info = manager.dict()
-    receiver = Receiver(shared_info, shared_job)
-    dealer = Dealer(shared_info, shared_job)
+    # 收取请求
+    receiver = Receiver(shared_info, shared_job, info_lock, job_lock)
+    # 处理请求
+    dealer = Dealer(shared_info, shared_job, info_lock, job_lock)
+    # 与DealController共享信息
     receiver.start()
     dealer.start()
     receiver.join()
