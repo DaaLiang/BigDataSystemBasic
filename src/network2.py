@@ -14,14 +14,46 @@ class Receiver(Process):
         Process.__init__(self)
         self.shared_memory = shared_memory
         self.lock = lock
+        self.base_time_global = 0
+        self.base_time_local = 0
+        self.init()
 
     # TODO 添加时间同步，初始化时建立
     def init(self):
-        pass
+        init_socket = socket.socket()
+
+        while True:
+            try:
+                init_socket.connect(Network2.SEND_SOCKET)
+            except:
+                continue
+            else:
+                break
+
+        # init_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # init_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        # init_socket.bind()
+        # init_socket.listen(1)
+        # conn, addr = init_socket.accept()
+        while True:
+            data = init_socket.recv(16)
+            if data == b't':
+                # 配合服务器测试
+                time.time()  # 考虑到取本机时间的开销
+                init_socket.send(b't')
+            else:
+                self.base_time_global = float(data.decode())
+                self.base_time_local = time.time()
+                print(self.base_time_global, self.base_time_local)
+                break
+        init_socket.shutdown(socket.SHUT_RDWR)  # TODO 关闭连接
+
+    def time(self):
+        now = time.time()
+        return now - self.base_time_local + self.base_time_global
 
     def run(self):
         # 保证init在接收数据之前完成，需要从Sequencer处同步来的时间
-        self.init()
         print("正在接受交易商信息")
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -51,7 +83,7 @@ class Receiver(Process):
     def buffer(self, messageJson):
         mylist = []
         # dataJson = socket_service()
-        time1 = time.time()
+        time1 = self.time()
         message = messageJson.decode()
         # print type(message)
         message = json.loads(message)
@@ -122,6 +154,14 @@ class Subscriber(Process):
             ['XiaoMi.HK', 13.52],
             ['JingDong.US', 21.84],
         ]
+        self.original_price = [
+            ['LeShiWang.SZ', 2.98],
+            ['AliBABA.US', 147.41],
+            ['TengXun.HK', 308.80],
+            ['MeiTuan.HK', 51.85],
+            ['XiaoMi.HK', 13.52],
+            ['JingDong.US', 21.84],
+        ]
 
     def update(self, header):
         new_info = header['info']
@@ -130,7 +170,8 @@ class Subscriber(Process):
 
     def publish(self, conn):
         header = {
-            'info': self.info
+            'info': self.info,
+            'origin': self.original_price
         }
         conn.send(json.dumps(header).encode())
 
@@ -145,9 +186,9 @@ class Subscriber(Process):
             # temp = bytes()
             # while True:
             data = conn.recv(1024)
-                # if not data:
-                #     break
-                # temp += data
+            # if not data:
+            #     break
+            # temp += data
             header = json.loads(data.decode())
             # print(header['src'])
             if header['src'] == 'controller':  # 从controller处来的消息，更新交易数据
@@ -160,9 +201,8 @@ class Subscriber(Process):
 if __name__ == '__main__':
     lock = Lock()
     shared_memory = Manager().list()
-
-    receiver = Receiver(shared_memory, lock)
     checker = Checker(shared_memory, lock)
+    receiver = Receiver(shared_memory, lock)
     subscriber = Subscriber()
 
     receiver.start()

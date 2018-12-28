@@ -3,11 +3,12 @@
 import socket
 import time
 
+
 # 返回测量的时间漂移 drift =  Time_server - Time_client
 def estimate_drift():
-    PORT = 60006    # 请求目的端口
-    TIMEOUT = 1     # UDP 报文的接收超时，因为存在丢失情况
-    CNT = 5         # 取多少次测量的平均值
+    PORT = 60006  # 请求目的端口
+    TIMEOUT = 1  # UDP 报文的接收超时，因为存在丢失情况
+    CNT = 5  # 取多少次测量的平均值
 
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.settimeout(TIMEOUT)
@@ -17,9 +18,11 @@ def estimate_drift():
     idx = 0
     while idx < CNT:
         t1 = time.time()
-        s.send('')
-        try: res = s.recv(1024)
-        except socket.timeout: continue
+        s.send(b't')
+        try:
+            res = s.recv(1024)
+        except socket.timeout:
+            continue
         t2 = time.time()
         T = float(str(res))
         drift += T - (t1 + t2) / 2
@@ -27,6 +30,7 @@ def estimate_drift():
     drift /= CNT
     # print(drift)
     return drift
+
 
 def server():
     PORT = 60006
@@ -39,9 +43,6 @@ def server():
 
 if __name__ == '__main__':
     estimate_drift()
-
-
-
 
 # def client():
 #     PORT = 60006
@@ -69,4 +70,3 @@ if __name__ == '__main__':
 #         mytime = drift
 #         print(mytime)
 #         time.sleep(sleep)
-

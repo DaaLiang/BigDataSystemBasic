@@ -116,7 +116,7 @@ class Publisher(Process):
             now = time.time()
             # 每秒发布一次
             # TODO 时间写到配置文档
-            if now - lastPublish < 1.0:
+            if now - lastPublish < 0.5:
                 # TODO 发布到所有服务器
                 lastPublish = now
                 continue

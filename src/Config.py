@@ -12,6 +12,7 @@ class Config(object):
     SEQUENCER_JOB_STROE_PORT = 7000
     DEALCONTROLLER_SUBSCRIBE_PORT = 7777
     CONTROLLER_TO_SERVER = 7778
+    SERVER_INIT_PORT = 7779
 
 
 # 不同节点配置，派生基类
@@ -29,6 +30,8 @@ class Network2(Config):
     SEND_SOCKET = ("127.0.0.1", Config.NETWORK_TO_SEQUENCER)
 
     SUBSCRIBE_SOCKET = ("0.0.0.0", Config.CONTROLLER_TO_SERVER)
+
+    INIT_SOCKET = ("0.0.0.0", Config.SERVER_INIT_PORT)
 
 
 class SequencerConfig(Config):
