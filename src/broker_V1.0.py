@@ -42,15 +42,15 @@ if __name__ == '__main__':
 
     stockAccount = len(presentStockPrice)
     # offerAccount = 1000
-    offerAccount = 1000
+    offerAccount = 8000
     buyOrSellTag = 2
     stockArray = np.zeros((stockAccount, 2, 2, offerAccount))
 
     newStockOfferTuple = ()
     flag = True
     while flag:
-        flag = False
-        # time.sleep(1)
+        # flag = False
+        # time.sleep(0.1)
         for i in range(stockAccount):
             newStockOfferTuple = ()
             for j in range(buyOrSellTag):
@@ -65,6 +65,6 @@ if __name__ == '__main__':
             message = {'data': newStockOfferTuple}
             messageJson = json.dumps(message).encode()
             messageLens = len(messageJson)
-            print(messageLens)
+            print("%fMB" % (messageLens / 1024.0 / 1024.0))
 
             socket_client(str(messageLens).encode(), messageJson)

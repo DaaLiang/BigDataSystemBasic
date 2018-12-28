@@ -120,7 +120,6 @@ class Receiver(Process):
         conn.send("confirm".encode())
         conn.close()
 
-    # TODO Receiver在收到组播后向Sequencer要求对应的工作数据，取回后加入队列
     def run(self):
         self.init()
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
@@ -139,33 +138,30 @@ class Receiver(Process):
                 self.logger.log("Socket Error")
                 pass
             else:
-                stock_idx, more_package, index = struct.unpack("iii", data[0:12])
-                # if len(data) != 512:
-                if not (addr in lastIndex):
-                    lastIndex[addr] = [index,]
-                else:
-                    lastIndex[addr].append(index)
-                print(len(data))
-                if stock_idx not in self.jobs:
-                    continue
-                if not (stock_idx in self.cache):
-                    self.cache[stock_idx] = data[12:]
-                else:
-                    self.cache[stock_idx] += data[12:]
-                # print("Receiving idx:%d more:%d %d" % (stock_idx, more_package, len(self.cache[stock_idx])))
-                if more_package == 0:
-                    print(max(lastIndex[addr]), len(lastIndex[addr]))
-                    lastIndex.pop(addr)
-                    total = self.cache.pop(stock_idx)
-                    print(len(total), len(total) % 504)
-                    # print(total.decode())
-                    temp = json.loads(total.decode())
+                data = json.loads(data.decode())['ready']
+                get_back = []
+                for stock_idx in data:
+                    if stock_idx in self.jobs:
+                        get_back.append(stock_idx)
+
+                data_sock = socket.socket()
+                data_sock.connect(DealerConfig.JOB_STORE_ADDRESS)
+                header = {
+                    'request': get_back
+                }
+                data_sock.send(json.dumps(header).encode())
+                buffer = bytes()
+                while True:
+                    data = data_sock.recv(1024)
+                    if not data:
+                        break
+                    buffer += data
+                jobs = json.loads(buffer.decode())['data']
+                for stock_idx, job in jobs.items():
                     if stock_idx in self.shared_job:
-                        self.shared_job[stock_idx] += temp['data']
+                        self.shared_job[stock_idx] += job
                     else:
-                        self.shared_job[stock_idx] = temp['data']
-                    # print(len(self.shared_job))
-                    # print("received: %d" % len(temp))
+                        self.shared_job[stock_idx] = job
 
 
 class Dealer(Process):
@@ -186,7 +182,7 @@ class Dealer(Process):
             #     lastPrint = now
             #     print(len(self.shared_job))
             for key in dict(self.shared_job):
-                print(key)
+                # print(key)
                 if len(self.shared_job[key]) == 0:
                     continue
                 # TODO 添加每次处理交易量设置

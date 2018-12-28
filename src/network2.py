@@ -36,7 +36,7 @@ class Receiver(Process):
                 if not datatemp:
                     break
                 dataJson += datatemp
-            print(len(dataJson))
+            # print(len(dataJson))
             self.buffer(dataJson)
             conn.close()
 
@@ -80,8 +80,8 @@ class Checker(Process):
                 time_start = time.time()
                 if len(shared_memory) != 0:
                     self.lock.acquire()
-                    print("shared_memory_size:" + str(len(shared_memory)))
-                    print(shared_memory[0])
+                    # print("shared_memory_size:" + str(len(shared_memory)))
+                    # print(shared_memory[0])
                     data_trans = shared_memory[:]
                     shared_memory[:] = []
                     self.lock.release()

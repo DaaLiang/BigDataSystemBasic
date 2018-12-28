@@ -9,7 +9,7 @@ class Config(object):
     BROKER_TO_NETWORK2 = 6668
     NETWORK_TO_SEQUENCER = 6669
     MULTICAST_GROUP_AND_PORT = ("224.1.1.1", 23456)
-
+    SEQUENCER_JOB_STROE_PORT = 7000
 
 # 不同节点配置，派生基类
 
@@ -32,6 +32,9 @@ class DealerConfig(Config):
     MYGROUP = Config.MULTICAST_GROUP_AND_PORT[0]
     SENDERIP = '0.0.0.0'
 
+    # 连接任务池地址
+    JOB_STORE_ADDRESS = ("192.168.0.101", Config.SEQUENCER_JOB_STROE_PORT)
+
 
 class SequencerConfig(Config):
     # 排序时间间隔，应该和 broker 的收集时间间隔相等
@@ -52,6 +55,9 @@ class SequencerConfig(Config):
     # SENDER_ADD = ('10.13.2.149', 60001)
     # 组播的目的地址
     MULTICAST_DST = DealerConfig.MULTICAST_GROUP
+
+    # 任务池监听地址
+    JOB_STORE_LISTEN = ("0.0.0.0", Config.SEQUENCER_JOB_STROE_PORT)
 
 
 class DealControllerConfig(Config):

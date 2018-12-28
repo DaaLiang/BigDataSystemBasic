@@ -7,31 +7,7 @@ import socket
 from multiprocessing import Manager, Process, Lock
 
 from Config import SequencerConfig
-import struct
 import json
-
-PACKAGE_SIZE = 512
-
-
-def pack(stock_idx, data):
-    packages = []
-    header = {
-        'stock_idx': stock_idx,
-        'data': data,
-    }
-    temp = json.dumps(header).encode()
-    total_length = len(temp)
-    data_size = PACKAGE_SIZE - 12
-    # print(type(total_length), type(data_size))
-    pack_num = int(total_length / data_size)
-    if pack_num * data_size == total_length:
-        pack_num = pack_num - 1
-    packages = [struct.pack("iii", stock_idx, 1, i) +
-                temp[i * data_size:min(total_length, (i + 1) * data_size)]
-                for i in range(pack_num)]
-    last_pack = struct.pack("iii", stock_idx, 0, pack_num) + temp[pack_num * data_size:]
-    packages.append(last_pack)
-    return packages
 
 
 class ListenServer(Process):
@@ -69,26 +45,33 @@ class ListenServer(Process):
             self.lock.release()
 
 
-
-
-
 class Sequencer(Process):
-    def __init__(self, shared_list, lock):
+    def __init__(self, shared_list, job_queue, list_lock, queue_lock):
         Process.__init__(self)
         self.shared_list = shared_list
-        self.lock = lock
+        self.job_queue = job_queue
+        self.list_lock = list_lock
+        self.queue_lock = queue_lock
 
-    def sendData(self, stock_id, data):
+    def send_ready(self, ready_data):
         skt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         skt.bind(SequencerConfig.SENDER_ADD)
-        packages = pack(stock_id, data)
-        b = bytes()
-        for each in packages:
-            skt.sendto(each, SequencerConfig.MULTICAST_DST)
-            b += each[12:]
-        recover = json.loads(b.decode())
-        print("SendMessage Keys", len(b), recover.keys())
+        header = {
+            'ready': ready_data,
+        }
+        data = json.dumps(header).encode()
+        skt.sendto(data, SequencerConfig.MULTICAST_DST)
         skt.close()
+
+    def put_jobs_into_queue(self, stock_jobs):
+
+        self.queue_lock.acquire()
+        for key, jobs in stock_jobs.items():
+            if not (key in self.job_queue):
+                self.job_queue[key] = jobs
+            else:
+                self.job_queue[key] += jobs
+        self.queue_lock.release()
 
     def run(self, ):
         last = time.time()
@@ -101,46 +84,88 @@ class Sequencer(Process):
             if (now - last) > SequencerConfig.INTERVAL:
                 last = now
                 if len(self.shared_list) != 0:
-                    self.lock.acquire()
+                    self.list_lock.acquire()
                     temp_list += list(self.shared_list)
                     self.shared_list[:] = []
-                    self.lock.release()
+                    self.list_lock.release()
                     temp_list.sort(key=lambda x: x[4])
 
             # check and send temp_list items always
-            if len(temp_list) == 0: continue
+            if len(temp_list) == 0:
+                continue
             now = time.time()
             index = 0
             stock_id = {}
-            # TODO 取出数据，将数据整理后，按时间排序，将时限范围内的数据放至请求池，
-            # TODO 组播通知Dealer新的任务，等待Dealer拿走
+            push_back = []
             while True:
                 if index == len(temp_list): break
                 each = temp_list[index]
                 if now - each[4] > SequencerConfig.INTERVAL + SequencerConfig.NETDELAY:
-                    if stock_id.has_key(each[0]) == False:
+                    if not (each[0] in stock_id):
                         stock_id[each[0]] = []
                     stock_id[each[0]].append(each)
                     index += 1
                     total += 1
                 else:
+                    # 将不符合时间要求的放回
+                    push_back.append(each)
                     break
+            self.list_lock.acquire()
+            self.shared_list += push_back
+            self.list_lock.release()
 
-            # send messages
-            if index == 0: continue
-            for id in stock_id.keys():
-                self.sendData(id, stock_id[id])
+            if len(stock_id.keys()) == 0:
+                continue
+
+            # 将准备好的数据放到共享内存
+            self.put_jobs_into_queue(stock_id)
+
+            ready_list = [key
+                          for key, jobs in self.job_queue.items()
+                          if len(jobs) != 0]
+            # 将当前准备好的任务组播至各个dealer
+            self.send_ready(ready_list)
 
             # drain temp_list
             temp_list[0:index] = []
 
-            if total != 0: print('num of messages sent ', total)
+            # if total != 0:
+            #     print('num of messages sent ', total)
 
-# TODO （listen）监听Dealer的数据请求，并将对应的请求发给Dealer
+
 class JobStore(Process):
-    def __init__(self, job_queue):
+    def __init__(self, job_queue, queue_lock):
         Process.__init__(self)
         self.job_queue = job_queue
+        self.queue_lock = queue_lock
+
+    def deal_request(self, conn, request_list):
+        data = {}
+        self.queue_lock.acquire()
+        for stock_idx in request_list:
+            if stock_idx in self.job_queue:
+                # TODO 为什么会出现被清空的情况
+                data[stock_idx] = self.job_queue.pop(stock_idx)
+            else:
+                data[stock_idx] = []
+        self.queue_lock.release()
+        header = {
+            'data': data
+        }
+        conn.send(json.dumps(header).encode())
+
+    def run(self):
+        listen_dealer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        listen_dealer.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        listen_dealer.bind(SequencerConfig.JOB_STORE_LISTEN)
+        listen_dealer.listen(5)
+        while True:
+            conn, addr = listen_dealer.accept()
+            data = conn.recv(1028)
+            request = json.loads(data.decode())['request']
+            # print("dealing connection from", addr)
+            self.deal_request(conn, request)
+            conn.close()
 
 
 if __name__ == '__main__':
@@ -148,10 +173,14 @@ if __name__ == '__main__':
     myList = manager.list()
     job_queue = manager.dict()
     listLock = Lock()
+    queueLock = Lock()
 
     listener = ListenServer(myList, listLock)
-    sequencer = Sequencer(myList, listLock)
+    sequencer = Sequencer(myList, job_queue, listLock, queueLock)
+    job_store = JobStore(job_queue, queueLock)
     listener.start()
     sequencer.start()
+    job_store.start()
     listener.join()
     sequencer.join()
+    job_store.join()
