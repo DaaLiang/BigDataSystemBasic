@@ -8,6 +8,7 @@ import socket
 
 import struct
 import json
+import time
 
 
 class Stock(object):
@@ -34,7 +35,7 @@ class Stock(object):
     def add_to_seller(self, price, amount):  # 按从小到大排序
         idx = len(self.prices_sell)
         while idx > 0:
-            if self.prices_buy[idx - 1][0] > price:
+            if self.prices_sell[idx - 1][0] > price:
                 idx -= 1
                 continue
             break
@@ -43,11 +44,12 @@ class Stock(object):
     def buy(self, price, amount):
         if len(self.prices_sell) == 0:
             self.add_to_buyer(price, amount)
+            return 0, 0
         remove = -1
         total_price = 0
         remain = amount
         idx = 0
-        while remain > 0:
+        while remain > 0 and idx < len(self.prices_sell):
             if self.prices_sell[idx][0] > price:  # 当找不到成交价时
                 break
             deal = min(remain, self.prices_sell[idx][1])
@@ -66,11 +68,12 @@ class Stock(object):
     def sell(self, price, amount):
         if len(self.prices_buy) == 0:
             self.add_to_seller(price, amount)
+            return 0, 0
         remove = -1
         total_price = 0
         remain = amount
         idx = 0
-        while remain > 0:
+        while remain > 0 and idx < len(self.prices_buy):
             if self.prices_buy[idx][0] < price:  # 当找不到成交价时
                 break
             deal = min(remain, self.prices_buy[idx][1])
@@ -88,11 +91,14 @@ class Stock(object):
 
 
 class Receiver(Process):
-    def __init__(self, shared_memory):
+    def __init__(self, shared_info, shared_job):
         Process.__init__(self)
 
         self.logger = Logger("Deal Receiver", DealerConfig.DEBUG)
-        self.shared_memory = shared_memory
+        # self.shared_memory = shared_memory
+        # self.shared_memory['stock'] = {}
+        self.shared_info = shared_info
+        self.shared_job = shared_job
         self.machine_idx = 0
         self.jobs = []
         self.cache = {}
@@ -107,7 +113,7 @@ class Receiver(Process):
         header = json.loads(conn.recv(1024).decode())
         self.jobs = header["jobs"]
         self.machine_idx = header["id"]
-        self.shared_memory["info"] = {
+        self.shared_info["info"] = {
             "jobs": header['jobs'],
             'machine_idx': header['id']
         }
@@ -124,6 +130,7 @@ class Receiver(Process):
                         socket.inet_aton(DealerConfig.MYGROUP) + socket.inet_aton(DealerConfig.SENDERIP))
 
         sock.setblocking(0)
+        lastIndex = {}
         while True:
             try:
                 data, addr = sock.recvfrom(1024)
@@ -131,74 +138,103 @@ class Receiver(Process):
                 self.logger.log("Socket Error")
                 pass
             else:
-                stock_idx, more_package = struct.unpack("ii", data[0:8])
+                stock_idx, more_package, index = struct.unpack("iii", data[0:12])
+                # if len(data) != 512:
+                if not (addr in lastIndex):
+                    lastIndex[addr] = [index,]
+                else:
+                    lastIndex[addr].append(index)
+                print(len(data))
                 if stock_idx not in self.jobs:
                     continue
                 if not (stock_idx in self.cache):
-                    self.cache[stock_idx] = data[8:]
+                    self.cache[stock_idx] = data[12:]
                 else:
-                    self.cache[stock_idx] += data[8:]
+                    self.cache[stock_idx] += data[12:]
+                # print("Receiving idx:%d more:%d %d" % (stock_idx, more_package, len(self.cache[stock_idx])))
                 if more_package == 0:
-                    temp = json.loads(self.cache.pop(stock_idx).decode())
-                    if stock_idx in self.shared_memory:
-                        self.shared_memory['stock'][stock_idx] += temp['data']
+                    print(max(lastIndex[addr]), len(lastIndex[addr]))
+                    lastIndex.pop(addr)
+                    total = self.cache.pop(stock_idx)
+                    print(len(total), len(total) % 504)
+                    # print(total.decode())
+                    temp = json.loads(total.decode())
+                    if stock_idx in self.shared_job:
+                        self.shared_job[stock_idx] += temp['data']
                     else:
-                        self.shared_memory['stock'][stock_idx] = temp['data']
-                print("received: %d" % len(temp))
+                        self.shared_job[stock_idx] = temp['data']
+                    # print(len(self.shared_job))
+                    # print("received: %d" % len(temp))
 
 
 class Dealer(Process):
-    def __init__(self, shared_memory):
+    def __init__(self, shared_info, shared_job):
         Process.__init__(self)
         self.logger = Logger("Deal Dealer", DealerConfig.DEBUG)
-        self.shared_memory = shared_memory
+        self.shared_info = shared_info
+        self.shared_job = shared_job
         # self.dealer_info = dealer_info
         self.queue = {}
         # self.info = {}
 
     def run(self):
+        lastPrint = 0
         while True:
-            if len(self.shared_memory) == 0:
-                continue
-
-            self.info = {}
-            if not ('stock' in self.shared_memory):
-                continue
-            for key, value in self.shared_memory['stock'].iteritems():
-                if len(value) == 0:
+            # now = time.time()
+            # if now - lastPrint > 1.0:
+            #     lastPrint = now
+            #     print(len(self.shared_job))
+            for key in dict(self.shared_job):
+                print(key)
+                if len(self.shared_job[key]) == 0:
                     continue
-                mean_price, deal_num = self.process(key, self.shared_memory.pop(key))
+                # TODO 添加每次处理交易量设置
+                mean_price, deal_num = self.process(key, self.shared_job.pop(key))
+                print(key, mean_price, deal_num)
                 # self.shared_memory['info'][key]['price'] = mean_price
                 # self.shared_memory['info'][key]['deal_num'] = deal_num
                 # self.shared_memory['info'][key]['request_num'] = len(value)
             # TODO 将获得的信息发送至DealController
 
-    def process(self, stock_idx, data):
+    def process(self, stock_idx, data):  # 处理交易
         if not (stock_idx in self.queue):
             self.queue[stock_idx] = Stock(stock_idx)
+        total_sell = [0, 0]
+        total_buy = [0, 0]
+        count_sell = 0
+        count_buy = 0
         for unit in data:
             # TODO 按照数据格式调整
-            total_sell = [0, 0]
-            total_buy = [0, 0]
-            if unit[0] == 1:
-                price, num = self.queue[stock_idx].sell(unit[1], unit[2])
+            # print(unit)
+            if unit[1] == 1:
+                price, num = self.queue[stock_idx].sell(unit[2], unit[3])
                 total_sell[0] += price
                 total_sell[1] += num
+                count_sell += 1
             else:
-                price, num = self.queue[stock_idx].buy(unit[1], unit[2])
+                price, num = self.queue[stock_idx].buy(unit[2], unit[3])
                 total_buy[0] += price
                 total_buy[1] += num
-        mean_price = (total_sell[0] + total_buy[0]) * 1.0 / (total_sell[1] + total_buy[1])
+                count_buy += 1
+        print(len(self.queue[stock_idx].prices_sell), len(self.queue[stock_idx].prices_buy))
+        # print(count_sell, count_buy)
+        if total_sell[1] + total_buy[1] != 0:
+            mean_price = (total_sell[0] + total_buy[0]) * 1.0 / (total_sell[1] + total_buy[1])
+        else:
+            mean_price = 0
         return mean_price, total_buy[1] + total_sell[1]
 
 
 if __name__ == "__main__":
     # dealer = Dealer()
     manager = Manager()
-    shared_memory = manager.dict()
+    shared_info = manager.dict()
+    # shared_info = {}
+    shared_job = manager.dict()
+    # shared_job = {}
     dealer_info = manager.dict()
-    receiver = Receiver(shared_memory)
-    dealer = Dealer(shared_memory)
+    receiver = Receiver(shared_info, shared_job)
+    dealer = Dealer(shared_info, shared_job)
     receiver.start()
     dealer.start()
     receiver.join()

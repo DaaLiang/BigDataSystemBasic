@@ -9,14 +9,19 @@ from multiprocessing import Manager, Process, Lock
 from Config import SequencerConfig
 from Listener import listenServer
 from pack import pack
+import json
 
 
 def sendData(stock_id, data):
     skt = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
     skt.bind(SequencerConfig.SENDER_ADD)
     packages = pack(stock_id, data)
+    b = bytes()
     for each in packages:
         skt.sendto(each, SequencerConfig.MULTICAST_DST)
+        b += each[12:]
+    recover = json.loads(b.decode())
+    print("SendMessage Keys",len(b), recover.keys())
     skt.close()
 
 

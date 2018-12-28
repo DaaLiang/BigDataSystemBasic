@@ -15,7 +15,7 @@ def socket_client(dataLen, data):
     try:
         # s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s = socket.socket()
-        #s.connect(('127.0.0.1', 7777))
+        # s.connect(('127.0.0.1', 7777))
         s.connect(BrokerConfig.SEND_SOCKET)
     except socket.error as msg:
         print(msg)
@@ -41,6 +41,7 @@ if __name__ == '__main__':
                          {'Company': 'XiaoMi.HK', 'Price': 13.52}, {'Company': 'JingDong.US', 'Price': 21.84})
 
     stockAccount = len(presentStockPrice)
+    # offerAccount = 1000
     offerAccount = 1000
     buyOrSellTag = 2
     stockArray = np.zeros((stockAccount, 2, 2, offerAccount))
@@ -48,8 +49,8 @@ if __name__ == '__main__':
     newStockOfferTuple = ()
     flag = True
     while flag:
-        #flag = False
-        time.sleep(1)
+        flag = False
+        # time.sleep(1)
         for i in range(stockAccount):
             newStockOfferTuple = ()
             for j in range(buyOrSellTag):
@@ -58,7 +59,8 @@ if __name__ == '__main__':
                     stockArray[i][j][0][:], stockArray[i][j][1][:] = generateQuotation(presentStockPrice[i]['Price'],
                                                                                        offerAccount)
                     newStockOfferTupleTemp = (
-                    (i, j, float('%.2f' % stockArray[i][j][0][k]), stockArray[i][j][1][k], time.time() - timeBegin),)
+                        (
+                        i, j, float('%.2f' % stockArray[i][j][0][k]), stockArray[i][j][1][k], time.time() - timeBegin),)
                     newStockOfferTuple = newStockOfferTuple + newStockOfferTupleTemp
             message = {'data': newStockOfferTuple}
             messageJson = json.dumps(message).encode()
