@@ -36,9 +36,6 @@ class Subscriber(Process):
         for stock_idx, info in temp_info.items():
             self.deal_info[stock_idx] = info
 
-
-
-
     # def record(self, header):
     #     machine = header["machine"]
     #     self.shared_memory['stock'] = header['stock']  # 保存交易信息
@@ -71,9 +68,10 @@ class DealController(Process):
 
     def init(self):
         jobs = [[], [], []]
+
         for i in range(DealControllerConfig.STOCK_NUM[0]):
             # jobs[i % 3].append(i)
-            jobs[0].append(i)
+            jobs[i % len(DealControllerConfig.DEALERS)].append(i)
 
         for machine_idx in range(len(DealControllerConfig.DEALERS)):
             success = self.wakeup_machine(DealControllerConfig.DEALERS[machine_idx],
@@ -91,6 +89,7 @@ class DealController(Process):
         wakeup_socket.connect(dest)
         wakeup_socket.send(json.dumps(header).encode())
         reply = wakeup_socket.recv(1024).decode()
+        print("Initializing %s %d" % dest)
         wakeup_socket.close()
         if reply == "confirm":
             return True
@@ -118,8 +117,10 @@ class Publisher(Process):
             # TODO 时间写到配置文档
             if now - lastPublish < 0.5:
                 # TODO 发布到所有服务器
-                lastPublish = now
                 continue
+            else:
+                lastPublish = now
+
             if len(self.deal_info) == 0:
                 continue
             header = {
@@ -128,9 +129,12 @@ class Publisher(Process):
             }
             data = (json.dumps(header)).encode()
             for addr in DealControllerConfig.PUBLISH_SOCKETS:
-                publish_socket = socket.socket()
-                publish_socket.connect(addr)
-                publish_socket.send(data)
+                try:
+                    publish_socket = socket.socket()
+                    publish_socket.connect(addr)
+                    publish_socket.send(data)
+                except:
+                    pass
 
 
 if __name__ == "__main__":

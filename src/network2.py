@@ -55,6 +55,7 @@ class Receiver(Process):
     def run(self):
         # 保证init在接收数据之前完成，需要从Sequencer处同步来的时间
         print("正在接受交易商信息")
+        lastPrint = 0
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             # 防止socket server重启后端口被占用（socket.error: [Errno 98] Address already in use）
@@ -66,6 +67,7 @@ class Receiver(Process):
             sys.exit(1)
         # print 'Waiting connection...'
         while True:
+            # print(self.time())
             conn, addr = s.accept()
             data_length = conn.recv(1024)
             conn.send("next".encode())
@@ -76,7 +78,9 @@ class Receiver(Process):
                     break
                 dataJson += datatemp
             # print(len(dataJson))
+            t1 = time.time()
             self.buffer(dataJson)
+            t2 = time.time()
             conn.close()
 
     ##buffering if(time<=0.5s)&&size does not satisfy
@@ -89,12 +93,27 @@ class Receiver(Process):
         message = json.loads(message)
         # print type(message)
         # TODO 性能优化，在此处对股票序号进行分类，避免sequencer对大数据集排序
+
         result_list = [(i[0], i[1], i[2], i[3], i[4] + time1) for i in message['data']]
+        result_dict = {}
+        stock_dict = {}
+        for m in message['data']:
+            if m[0] in stock_dict:
+                continue
+            stock_dict[m[0]] = m[0]
+            result_dict[m[0]] = [(i[0], i[1], i[2], i[3], i[4] + time1)
+                                 for i in message['data'] if i[0] == m[0]]
+
         # print(len(result_list))
 
         self.lock.acquire()
-        self.shared_memory += result_list  # 内存共享List加锁
+        for stock in stock_dict.keys():
+            if stock in self.shared_memory:
+                self.shared_memory[stock] += result_dict[stock]  # 内存共享List加锁
+            else:
+                self.shared_memory[stock] = result_dict[stock]
         self.lock.release()
+        # print("buffered: %d" % message['tag'])
         # mylist=mylist+result_list
         # print sys.getsizeof(mylist)
 
@@ -116,14 +135,15 @@ class Checker(Process):
         time_start = time.time()
         while True:
 
-            if time.time() - time_start > time_gap or len(shared_memory) >= 1000000:
+            if time.time() - time_start > time_gap or len(self.shared_memory) >= 1000000:
                 time_start = time.time()
-                if len(shared_memory) != 0:
+                if len(self.shared_memory) != 0:
                     self.lock.acquire()
                     # print("shared_memory_size:" + str(len(shared_memory)))
                     # print(shared_memory[0])
-                    data_trans = shared_memory[:]
-                    shared_memory[:] = []
+                    data_trans = self.shared_memory.copy()
+                    for stock in self.shared_memory.keys():
+                        self.shared_memory[stock] = []
                     self.lock.release()
                     try:
                         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -138,6 +158,8 @@ class Checker(Process):
                     }
                     s.send(json.dumps(header).encode())
                     s.close()
+                # t2 = time.time()
+                # print("Process Time %f per gap %f" % (t2 - time_start, time_gap))
 
 
 # 接收从Controller处发来的股价等信息,
@@ -183,13 +205,7 @@ class Subscriber(Process):
         subscribe_socket.listen(10)
         while True:
             conn, addr = subscribe_socket.accept()
-            # print(addr)
-            # temp = bytes()
-            # while True:
             data = conn.recv(1024)
-            # if not data:
-            #     break
-            # temp += data
             header = json.loads(data.decode())
             # print(header['src'])
             if header['src'] == 'controller':  # 从controller处来的消息，更新交易数据
@@ -201,14 +217,14 @@ class Subscriber(Process):
 
 if __name__ == '__main__':
     lock = Lock()
-    shared_memory = Manager().list()
+    shared_memory = Manager().dict()
     checker = Checker(shared_memory, lock)
     receiver = Receiver(shared_memory, lock)
     subscriber = Subscriber()
 
+    subscriber.start()
     receiver.start()
     checker.start()
-    subscriber.start()
     receiver.join()
     checker.join()
     subscriber.join()

@@ -64,7 +64,7 @@ def update_price():
     sock = socket.socket()
 
     sock.connect(BrokerConfig.UPDATE_SOCKET)
-    print("connected")
+    # print("connected")
     header = {
         'src': 'broker'
     }
@@ -101,19 +101,28 @@ if __name__ == '__main__':
     presentStockPrice, origin = update_price()
     stockAccount = len(presentStockPrice)
     # offerAccount = 1000
-    offerAccount = 1000
+    offerAccount = 200
     buyOrSellTag = 2
     stockArray = np.zeros((stockAccount, 2, 2, offerAccount))
     lastEvent = 'Hello World'
     newStockOfferTuple = ()
     flag = True
+    tag = 0
+    lastUpdate = time.time()
     while flag:
         # flag = False
-        time.sleep(0.1)  # 每隔0.1秒发一次
+        time.sleep(0.03)  # 每隔0.1秒发一次
         # 每次发布数据前，更新当前价格
-        presentStockPrice, origin = update_price()
-        print_price(presentStockPrice, origin, lastEvent)
 
+        presentStockPrice, origin = update_price()
+        now = time.time()
+        if now - lastUpdate > 2:
+            lastUpdate = now
+            print_price(presentStockPrice, origin, lastEvent)
+
+        # [ for i in range(stockAccount)
+        #   for j in range(buyOrSellTag)
+        #   for k in range(offerAccount)]
         for i in range(stockAccount):
             newStockOfferTuple = ()
             for j in range(buyOrSellTag):
@@ -127,9 +136,12 @@ if __name__ == '__main__':
                             i, j, float('%.2f' % stockArray[i][j][0][k]), stockArray[i][j][1][k],
                             time.time() - timeBegin),)
                     newStockOfferTuple = newStockOfferTuple + newStockOfferTupleTemp
-            message = {'data': newStockOfferTuple}
+            message = {'data': newStockOfferTuple, 'tag': tag}
             messageJson = json.dumps(message).encode()
             messageLens = len(messageJson)
             # print("%fMB" % (messageLens / 1024.0 / 1024.0))
-
+            before = time.time()
             socket_client(str(messageLens).encode(), messageJson)
+            after = time.time()
+            # print("deltatime: %f %d" % (after - before, messageLens))
+            tag += 1

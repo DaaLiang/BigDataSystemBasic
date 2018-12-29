@@ -171,6 +171,7 @@ class Receiver(Process):
                 pass
             else:
                 data = json.loads(data.decode())['ready']
+                # print("Get Info", data)
                 get_back = []
                 for stock_idx in data:
                     if stock_idx in self.jobs:
@@ -225,12 +226,20 @@ class Dealer(Process):
     def run(self):
         lastPrint = 0
         total_deal = 0
+        deal_count = 0
+        total_request_num = 0
         while True:
             now = time.time()
             if now - lastPrint > 1.0:
+                print("-----------")
                 print(now - lastPrint, total_deal, total_deal / (now - lastPrint))
+                print(deal_count, deal_count / (now - lastPrint), total_request_num, total_request_num / (now - lastPrint))
+                print("-----------")
                 lastPrint = now
                 total_deal = 0
+                deal_count = 0
+                total_request_num = 0
+
             info = {}
             for key in dict(self.shared_job):
                 # print(key)
@@ -238,11 +247,12 @@ class Dealer(Process):
                     continue
                 # TODO 添加每次处理交易量设置
                 requests = self.pop_data(key)
-                mean_price, deal_num = self.process(key, requests)
+                mean_price, deal_num, deal, request_num = self.process(key, requests)
                 if deal_num != 0:
                     info[key] = (mean_price, deal_num)
-
+                deal_count += deal
                 total_deal += deal_num
+                total_request_num += request_num
             # TODO 将获得的信息发送至DealController
             if len(info) != 0:
                 self.publish(info)
@@ -263,6 +273,8 @@ class Dealer(Process):
         total_buy = [0, 0]
         count_sell = 0
         count_buy = 0
+        total_deal = 0
+        total_request = 0
         for unit in data:
             # print(unit)
             if unit[1] == 1:
@@ -270,11 +282,16 @@ class Dealer(Process):
                 total_sell[0] += price
                 total_sell[1] += num
                 count_sell += 1
+                if num != 0:
+                    total_deal += 1
             else:
                 price, num = self.queue[stock_idx].buy(unit[2], unit[3])
                 total_buy[0] += price
                 total_buy[1] += num
                 count_buy += 1
+                if num != 0:
+                    total_deal += 1
+            total_request += 1
             request_price += unit[2] * unit[3]
             request_num += unit[3]
         # print(len(self.queue[stock_idx].prices_sell), len(self.queue[stock_idx].prices_buy))
@@ -285,7 +302,7 @@ class Dealer(Process):
         else:
             mean_price = 0
             self.shrink(stock_idx, request_price / request_num)  # 如果没成交，按请求均价shrink
-        return mean_price, total_buy[1] + total_sell[1]
+        return mean_price, total_buy[1] + total_sell[1], total_deal, total_request
 
 
 if __name__ == "__main__":

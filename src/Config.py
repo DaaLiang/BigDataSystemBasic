@@ -11,7 +11,7 @@ class Config(object):
     MULTICAST_GROUP_AND_PORT = ("224.1.1.1", 23456)
     SEQUENCER_JOB_STROE_PORT = 7000
     DEALCONTROLLER_SUBSCRIBE_PORT = 7777
-    CONTROLLER_TO_SERVER = 7778
+    CONTROLLER_TO_SERVER = 34567
     SERVER_INIT_PORT = 7779
 
 
@@ -27,11 +27,11 @@ class BrokerConfig(Config):
 class Network2(Config):
     RECV_SOCKET = ("0.0.0.0", Config.BROKER_TO_NETWORK2)
     # 接受李鑫的socket
-    SEND_SOCKET = ("127.0.0.1", Config.NETWORK_TO_SEQUENCER)
+    SEND_SOCKET = ("192.168.0.103", Config.NETWORK_TO_SEQUENCER)
 
     SUBSCRIBE_SOCKET = ("0.0.0.0", Config.CONTROLLER_TO_SERVER)
 
-    INIT_SOCKET = ("0.0.0.0", Config.SERVER_INIT_PORT)
+    # INIT_SOCKET = ("0.0.0.0", Config.SERVER_INIT_PORT)
 
 
 class SequencerConfig(Config):
@@ -39,7 +39,7 @@ class SequencerConfig(Config):
     INTERVAL = 1
 
     # 网络传输延迟，用来调节每次排完序后可以发送的数据包 (s)
-    NETDELAY = 0.001
+    NETDELAY = 0.1
 
     # 监听 broker 的端口
     LISTEN_PORT = ("0.0.0.0", Config.NETWORK_TO_SEQUENCER)
@@ -49,7 +49,7 @@ class SequencerConfig(Config):
     RECV_BUFF_SIZE = 4096
 
     # 组播的源地址
-    SENDER_ADD = ('192.168.0.101', 60001)
+    SENDER_ADD = ('192.168.0.103', 60001)
     # SENDER_ADD = ('10.13.2.149', 60001)
     # 组播的目的地址
     MULTICAST_DST = Config.MULTICAST_GROUP_AND_PORT
@@ -66,23 +66,24 @@ class DealerConfig(Config):
     SENDERIP = '0.0.0.0'
 
     # 连接任务池地址
-    JOB_STORE_ADDRESS = ("192.168.0.101", Config.SEQUENCER_JOB_STROE_PORT)
-    CONTROLLER_SUBSCRIBE_SOCKET = ("192.168.0.101", Config.DEALCONTROLLER_SUBSCRIBE_PORT)
+    JOB_STORE_ADDRESS = ("192.168.0.103", Config.SEQUENCER_JOB_STROE_PORT)
+    CONTROLLER_SUBSCRIBE_SOCKET = ("192.168.0.103", Config.DEALCONTROLLER_SUBSCRIBE_PORT)
 
 
 class DealControllerConfig(Config):
     DEALERS = [
-        ("192.168.0.102", Config.DEALER_JOB_PORT),
         # ("192.168.0.102", Config.DEALER_JOB_PORT),
-        # ("192.168.0.103", Config.DEALER_JOB_PORT),
-        # ("192.168.0.104", Config.DEALER_JOB_PORT),
+        # ("192.168.0.102", Config.DEALER_JOB_PORT),
+        ("192.168.0.104", Config.DEALER_JOB_PORT),
+        ("192.168.0.105", Config.DEALER_JOB_PORT),
     ]
     SUBSCRIBE_SOCKET = ("0.0.0.0", Config.DEALCONTROLLER_SUBSCRIBE_PORT)
     # 各台服务器的接收地址
     PUBLISH_SOCKETS = [
-        ('127.0.0.1', Config.CONTROLLER_TO_SERVER),
+        ('192.168.0.101', Config.CONTROLLER_TO_SERVER),
+        ('192.168.0.102', Config.CONTROLLER_TO_SERVER),
     ]
     STOCK_NUM = 10,
 
-    def ConsuptionCalc(self, last, new):
+    def ConsumptionCalc(self, last, new):
         return last * 0.3 + new * 0.7
