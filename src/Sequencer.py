@@ -8,6 +8,7 @@ from multiprocessing import Manager, Process, Lock
 
 from Config import SequencerConfig
 import json
+import threading
 
 
 class ListenServer(Process):
@@ -44,6 +45,34 @@ class ListenServer(Process):
         for addr in SequencerConfig.SERVER_ADDRESSES:
             self.time_sync(addr)
 
+    def buffer(self, conn, shared_dict, lock):
+        buffer = None
+        t1 = time.time()
+        while True:
+            data = conn.recv(SequencerConfig.RECV_BUFF_SIZE)
+            if not data:
+                break
+            if not buffer:
+                buffer = data
+            else:
+                buffer += data
+            # print(len(buffer), len(data))
+        future = json.loads(buffer.decode())
+
+        lock.acquire()
+        for key in future['data'].keys():
+            if key in shared_dict:
+                shared_dict[key] += list(future['data'][key])
+            else:
+                shared_dict[key] = list(future['data'][key])
+        # total += len(future['data'])
+        # print (total)
+        lock.release()
+        t2 = time.time()
+        conn.shutdown(socket.SHUT_RD)
+        conn.close()
+        print("Receiving time %f" % (t2 - t1))
+
     def run(self):
 
         sock = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
@@ -60,30 +89,8 @@ class ListenServer(Process):
                 self.register(conn, address)
                 conn.close()
                 continue
-            buffer = None
-            t1 = time.time()
-            while True:
-                data = conn.recv(SequencerConfig.RECV_BUFF_SIZE)
-                if not data:
-                    break
-                if not buffer:
-                    buffer = data
-                else:
-                    buffer += data
-                # print(len(buffer), len(data))
-            future = json.loads(buffer.decode())
-
-            self.lock.acquire()
-            for key in future['data'].keys():
-                if key in self.shared_dict:
-                    self.shared_dict[key] += list(future['data'][key])
-                else:
-                    self.shared_dict[key] = list(future['data'][key])
-            # total += len(future['data'])
-            # print (total)
-            self.lock.release()
-            t2 = time.time()
-            print("Receiving time %f" % (t2 - t1))
+            thread = threading.Thread(target=self.buffer, args=(conn, self.shared_dict, self.lock))
+            thread.start()
 
 
 class Sequencer(Process):

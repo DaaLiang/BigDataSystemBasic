@@ -130,7 +130,7 @@ class Checker(Process):
 
     def run(self):
         print("正在监测通信服务器状态")
-        time_gap = 1  # 整合数据的时间间隔
+        time_gap = 0.5  # 整合数据的时间间隔
         last_lens = 0
         time_start = time.time()
         while True:

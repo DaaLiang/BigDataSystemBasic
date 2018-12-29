@@ -111,7 +111,7 @@ if __name__ == '__main__':
     lastUpdate = time.time()
     while flag:
         # flag = False
-        time.sleep(0.03)  # 每隔0.1秒发一次
+        time.sleep(0.035)  # 每隔0.1秒发一次
         # 每次发布数据前，更新当前价格
 
         presentStockPrice, origin = update_price()
